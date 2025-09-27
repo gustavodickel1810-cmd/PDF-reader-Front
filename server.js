@@ -4,6 +4,8 @@ const path = require('path');
 const app = express();
 const frontendPort = 8080;
 
+require('./keepAlive');
+
 // Serve static files from current directory
 app.use(express.static(__dirname));
 

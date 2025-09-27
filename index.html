@@ -406,8 +406,6 @@
         }
 
         .play-pause-btn {
-            width: 48px;
-            height: 48px;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
             border: none;
@@ -416,8 +414,35 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 0; /* Hide any stray text/emoji */
             transition: all 0.3s ease;
+        }
+
+        /* Styling for the main play/pause button */
+        .play-pause-btn.main-control {
+            width: 56px;
+            height: 56px;
+        }
+
+        /* Styling for the skip buttons */
+        .play-pause-btn.skip-control {
+            width: 40px;
+            height: 40px;
+        }
+
+        .play-pause-btn svg {
+            /* Common SVG styling */
+            width: 24px; 
+            height: 24px;
+            stroke: white;
+            fill: none;
+            stroke-width: 2;
+        }
+
+        .play-pause-btn.skip-control svg {
+            /* Smaller SVG size for skip buttons */
+            width: 18px; 
+            height: 18px;
         }
 
         .play-pause-btn:hover {
@@ -659,7 +684,6 @@
             </div>
         </div>
 
-        <!-- English Section -->
         <div id="english-content" class="tab-content active">
             <div class="card">
                 <h3><span class="card-icon">📄</span>Upload Document</h3>
@@ -676,8 +700,7 @@
             <div class="card">
                 <h3><span class="card-icon">🎤</span>Choose Voice</h3>
                 <div class="voice-grid" id="voiceGridEn">
-                    <!-- English voices will be populated here -->
-                </div>
+                    </div>
             </div>
 
             <div class="card">
@@ -693,7 +716,6 @@
             <div class="card">
                 <h3><span class="card-icon">🎛️</span>Controls</h3>
                 
-                <!-- Caching Status -->
                 <div class="cache-status" id="cacheStatusEn">
                     <div class="cache-content">
                         <div id="cacheIconEn">📦</div>
@@ -709,7 +731,30 @@
                 
                 <div class="audio-player" id="audioPlayerEn" style="display: none;">
                     <div class="player-controls">
-                        <button class="play-pause-btn" id="playPauseBtnEn">▶</button>
+                        <button class="play-pause-btn skip-control" id="skipBackBtnEn" title="Skip to Start (Click 2x for Previous Chunk)">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="19 20 9 12 19 4 19 20"></polygon>
+                                <line x1="5" y1="19" x2="5" y2="5"></line>
+                            </svg>
+                        </button>
+                        
+                        <button class="play-pause-btn main-control" id="playPauseBtnEn">
+                            <svg id="playIconEn" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            <svg id="pauseIconEn" style="display: none;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="6" y="4" width="4" height="16"></rect>
+                                <rect x="14" y="4" width="4" height="16"></rect>
+                            </svg>
+                        </button>
+                        
+                        <button class="play-pause-btn skip-control" id="skipAheadBtnEn" title="Skip to Next Chunk">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="5 4 15 12 5 20 5 4"></polygon>
+                                <line x1="19" y1="5" x2="19" y2="19"></line>
+                            </svg>
+                        </button>
+
                         <div class="audio-progress" id="audioProgressEn">
                             <div class="audio-progress-fill" id="audioProgressFillEn"></div>
                         </div>
@@ -745,7 +790,6 @@
             </div>
         </div>
 
-        <!-- Portuguese Section -->
         <div id="portuguese-content" class="tab-content">
             <div class="card">
                 <h3><span class="card-icon">📄</span>Carregar Documento</h3>
@@ -762,8 +806,7 @@
             <div class="card">
                 <h3><span class="card-icon">🎤</span>Escolher Voz</h3>
                 <div class="voice-grid" id="voiceGridPt">
-                    <!-- Portuguese voices will be populated here -->
-                </div>
+                    </div>
             </div>
 
             <div class="card">
@@ -779,7 +822,6 @@
             <div class="card">
                 <h3><span class="card-icon">🎛️</span>Controles</h3>
                 
-                <!-- Caching Status -->
                 <div class="cache-status" id="cacheStatusPt">
                     <div class="cache-content">
                         <div id="cacheIconPt">📦</div>
@@ -795,7 +837,30 @@
                 
                 <div class="audio-player" id="audioPlayerPt" style="display: none;">
                     <div class="player-controls">
-                        <button class="play-pause-btn" id="playPauseBtnPt">▶</button>
+                        <button class="play-pause-btn skip-control" id="skipBackBtnPt" title="Voltar ao Início (Clique 2x para Bloco Anterior)">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="19 20 9 12 19 4 19 20"></polygon>
+                                <line x1="5" y1="19" x2="5" y2="5"></line>
+                            </svg>
+                        </button>
+                        
+                        <button class="play-pause-btn main-control" id="playPauseBtnPt">
+                            <svg id="playIconPt" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            <svg id="pauseIconPt" style="display: none;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="6" y="4" width="4" height="16"></rect>
+                                <rect x="14" y="4" width="4" height="16"></rect>
+                            </svg>
+                        </button>
+                        
+                        <button class="play-pause-btn skip-control" id="skipAheadBtnPt" title="Avançar para o Próximo Bloco">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="5 4 15 12 5 20 5 4"></polygon>
+                                <line x1="19" y1="5" x2="19" y2="19"></line>
+                            </svg>
+                        </button>
+
                         <div class="audio-progress" id="audioProgressPt">
                             <div class="audio-progress-fill" id="audioProgressFillPt"></div>
                         </div>
@@ -967,6 +1032,7 @@
                 this.isPreloading = false;
                 this.preloadedCount = 0;
                 this.maxPreloadChunks = 15; // Preload up to 15 chunks (roughly 5 minutes)
+                this.lastSkipBackClickTime = 0; // NEW: For double-click logic
 
                 // Voice options that are confirmed to work with TTSMP3 API
                 this.availableVoices = language === 'en' ? [
@@ -1001,6 +1067,14 @@
                 this.cacheProgress = document.getElementById(`cacheProgress${suffix}`);
                 this.cacheBarFill = document.getElementById(`cacheBarFill${suffix}`);
                 this.cacheIcon = document.getElementById(`cacheIcon${suffix}`);
+
+                // Icon elements
+                this.playIcon = document.getElementById(`playIcon${suffix}`);
+                this.pauseIcon = document.getElementById(`pauseIcon${suffix}`);
+
+                // Skip buttons
+                this.skipBackBtn = document.getElementById(`skipBackBtn${suffix}`);
+                this.skipAheadBtn = document.getElementById(`skipAheadBtn${suffix}`);
             }
 
             setupEventListeners(suffix) {
@@ -1011,6 +1085,72 @@
                 this.chunkSizeRange.addEventListener('input', (e) => this.updateChunkSize(e.target.value));
                 this.playPauseBtn.addEventListener('click', () => this.togglePlayPause());
                 this.audioProgress.addEventListener('click', (e) => this.seekAudio(e));
+
+                // UPDATED: Skip button listeners
+                this.skipBackBtn.addEventListener('click', () => this.skipBack());
+                this.skipAheadBtn.addEventListener('click', () => this.skipToNextChunk());
+            }
+
+            /**
+             * NEW: Implements the skip ahead logic: jump to the next audio chunk.
+             */
+            skipToNextChunk() {
+                if (!this.isPlaying || this.currentChunkIndex >= this.currentChunks.length - 1) {
+                    // Stop or already at the end
+                    this.stopReading();
+                    return;
+                }
+
+                // Stop current audio
+                if (this.currentAudio) {
+                    this.currentAudio.pause();
+                    this.currentAudio = null;
+                }
+                
+                // Move to the next chunk and read it
+                this.currentChunkIndex++;
+                this.readChunk(this.currentChunkIndex);
+            }
+
+            /**
+             * NEW: Implements the skip back logic: 
+             * 1. Single click: Reset current chunk to 0.
+             * 2. Double click (within 2s): Jump to previous chunk.
+             */
+            skipBack() {
+                if (!this.isPlaying || !this.currentAudio) {
+                    // If paused, just jump back a chunk
+                    if (this.currentChunkIndex > 0) {
+                        this.currentChunkIndex--;
+                        this.readChunk(this.currentChunkIndex);
+                    }
+                    return;
+                }
+                
+                const now = Date.now();
+                const timeSinceLastClick = now - this.lastSkipBackClickTime;
+                this.lastSkipBackClickTime = now;
+                
+                if (timeSinceLastClick < 2000) {
+                    // SECOND CLICK (within 2 seconds) -> Jump to previous chunk
+                    if (this.currentChunkIndex > 0) {
+                        // Stop current audio
+                        this.currentAudio.pause();
+                        this.currentAudio = null;
+                        
+                        // Move to previous chunk
+                        this.currentChunkIndex--;
+                        this.readChunk(this.currentChunkIndex);
+                    } else {
+                        // Already at the first chunk, just reset to 0
+                        this.currentAudio.currentTime = 0;
+                    }
+
+                } else {
+                    // FIRST CLICK (or click after 2 seconds) -> Jump to start of current audio
+                    this.currentAudio.currentTime = 0;
+                }
+                this.updateTimeDisplay();
             }
 
             populateVoices() {
@@ -1354,6 +1494,7 @@
                     return;
                 }
 
+                this.currentChunkIndex = chunkIndex; // Ensure index is correct after skipping
                 const chunk = this.currentChunks[chunkIndex];
                 this.highlightChunk(chunkIndex);
 
@@ -1378,6 +1519,8 @@
                         
                         if (this.isPlaying) {
                             this.currentChunkIndex++;
+                            // Start preloading the next chunks after a delay
+                            setTimeout(() => this.startPreloadingAudio(), 50); 
                             setTimeout(() => this.readChunk(this.currentChunkIndex), 300);
                         }
                     }
@@ -1495,7 +1638,10 @@
 
                     // Show audio player
                     this.audioPlayer.style.display = 'block';
-                    this.playPauseBtn.textContent = '⏸';
+                    
+                    // Show pause icon and hide play icon
+                    this.playIcon.style.display = 'none';
+                    this.pauseIcon.style.display = 'block';
 
                     // Update progress during playback
                     this.currentAudio.ontimeupdate = () => {
@@ -1508,7 +1654,9 @@
 
                     this.currentAudio.onended = () => {
                         URL.revokeObjectURL(audioUrl);
-                        this.playPauseBtn.textContent = '▶';
+                        // Show play icon and hide pause icon
+                        this.playIcon.style.display = 'block';
+                        this.pauseIcon.style.display = 'none';
                         this.audioProgressFill.style.width = '0%';
                         resolve();
                     };
@@ -1531,10 +1679,14 @@
                 if (this.currentAudio) {
                     if (this.currentAudio.paused) {
                         this.currentAudio.play();
-                        this.playPauseBtn.textContent = '⏸';
+                        // Show pause icon
+                        this.playIcon.style.display = 'none';
+                        this.pauseIcon.style.display = 'block';
                     } else {
                         this.currentAudio.pause();
-                        this.playPauseBtn.textContent = '▶';
+                        // Show play icon
+                        this.playIcon.style.display = 'block';
+                        this.pauseIcon.style.display = 'none';
                     }
                 }
             }
@@ -1625,7 +1777,11 @@
                 this.clearHighlights();
                 const chunk = this.currentChunks[chunkIndex];
                 
-                for (let i = chunk.startIndex; i <= chunk.endIndex; i++) {
+                // Find the first and last word index
+                const firstWordIndex = chunk.startIndex;
+                const lastWordIndex = chunk.endIndex;
+
+                for (let i = firstWordIndex; i <= lastWordIndex; i++) {
                     const wordElement = document.getElementById(`word-${this.language}-${i}`);
                     if (wordElement) {
                         wordElement.classList.add('chunk-highlight');
@@ -1633,7 +1789,7 @@
                 }
 
                 // Scroll to the highlighted chunk
-                const firstWord = document.getElementById(`word-${this.language}-${chunk.startIndex}`);
+                const firstWord = document.getElementById(`word-${this.language}-${firstWordIndex}`);
                 if (firstWord) {
                     firstWord.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
