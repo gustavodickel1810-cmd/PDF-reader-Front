@@ -76,7 +76,7 @@ node frontend-server.js
 cd /Users/lakshitkhurana/Desktop/pdf
 node server.js
 ```
-✅ Should show: "🚀 Enhanced PDF Reader Backend is running on http://localhost:3000"
+✅ Should show: "🚀 Enhanced PDF Reader Backend is running on https://pdf-reader-back.onrender.com"
 
 ### Step 2: Start Frontend Server (pick one method above)
 ```bash
@@ -121,7 +121,7 @@ pdf/
 
 Once both servers are running:
 1. **Frontend:** `http://localhost:8080` (your HTML)
-2. **Backend:** `http://localhost:3000` (TTS API)
+2. **Backend:** `https://pdf-reader-back.onrender.com` (TTS API)
 3. **Status:** Both green checkmarks in header
 4. **Features:** Voice test works, audio caching works, offline reading works!
 
@@ -160,7 +160,7 @@ app.listen(frontendPort, () => {
     console.log(`🌐 Frontend server running at http://localhost:${frontendPort}`);
     console.log(`📱 Open your browser and go to: http://localhost:${frontendPort}`);
     console.log(`📄 Make sure your index.html file is in the same folder as this server.js file`);
-    console.log(`🔌 Backend should be running on http://localhost:3000`);
+    console.log(`🔌 Backend should be running on https://pdf-reader-back.onrender.com`);
 });
 
 package.json 

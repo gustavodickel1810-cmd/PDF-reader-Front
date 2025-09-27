@@ -17,5 +17,5 @@ app.listen(frontendPort, () => {
     console.log(`🌐 Frontend server running at http://localhost:${frontendPort}`);
     console.log(`📱 Open your browser and go to: http://localhost:${frontendPort}`);
     console.log(`📄 Make sure your index.html file is in the same folder as this server.js file`);
-    console.log(`🔌 Backend should be running on http://localhost:3000`);
+    console.log(`🔌 Backend should be running on https://pdf-reader-back.onrender.com`);
 });

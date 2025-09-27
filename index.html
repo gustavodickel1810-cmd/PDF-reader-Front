@@ -863,7 +863,7 @@
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
                 
-                const response = await fetch('http://localhost:3000/api/health', {
+                const response = await fetch('https://pdf-reader-back.onrender.com/api/health', {
                     method: 'GET',
                     signal: controller.signal
                 });
@@ -1331,7 +1331,7 @@
 
             async checkServerConnection() {
                 try {
-                    const response = await fetch('http://localhost:3000/api/health', {
+                    const response = await fetch('https://pdf-reader-back.onrender.com/api/health', {
                         method: 'GET',
                         timeout: 5000
                     });
@@ -1340,7 +1340,7 @@
                         throw new Error('Server is not responding properly');
                     }
                 } catch (error) {
-                    throw new Error('Cannot connect to server. Please make sure your backend server is running on http://localhost:3000');
+                    throw new Error('Cannot connect to server. Please make sure your backend server is running on https://pdf-reader-back.onrender.com');
                 }
             }
 
@@ -1393,7 +1393,7 @@
             }
 
             async generateAudioFromProxy(text, voiceName) {
-                const apiUrl = 'http://localhost:3000/api/tts';
+                const apiUrl = 'https://pdf-reader-back.onrender.com/api/tts';
                 
                 // Get the selected voice details for language code
                 const selectedVoiceData = this.availableVoices.find(v => v.name === voiceName);
@@ -1462,7 +1462,7 @@
                     
                     // Fallback: Use proxy to download audio
                     try {
-                        const proxyResponse = await fetch('http://localhost:3000/api/download-audio', {
+                        const proxyResponse = await fetch('https://pdf-reader-back.onrender.com/api/download-audio', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
