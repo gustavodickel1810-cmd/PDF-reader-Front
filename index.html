@@ -1,0 +1,1699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Multi-Language Document Reader</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --text-muted: #808080;
+            --accent-primary: #4f46e5;
+            --accent-secondary: #7c3aed;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --border: #3a3a3a;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .header {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 16px;
+            letter-spacing: -0.02em;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.125rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .language-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 32px 0;
+            padding: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            max-width: 400px;
+            margin: 32px auto;
+        }
+
+        .tab-button {
+            flex: 1;
+            background: transparent;
+            color: var(--text-secondary);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .tab-button.active {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+
+        .card h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 24px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-icon {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .file-input-container {
+            position: relative;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-input-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+            padding: 48px;
+            border: 2px dashed var(--border);
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--bg-secondary);
+            min-height: 140px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .file-input-label::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .file-input-label:hover {
+            border-color: var(--accent-primary);
+            background: var(--bg-tertiary);
+            transform: translateY(-2px);
+        }
+
+        .file-input-label:hover::before {
+            left: 100%;
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .voice-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .voice-option {
+            padding: 20px;
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--bg-secondary);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .voice-option::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .voice-option:hover {
+            border-color: var(--accent-primary);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .voice-option:hover::before {
+            left: 100%;
+        }
+
+        .voice-option.selected {
+            border-color: var(--accent-primary);
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(124, 58, 237, 0.1));
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.2);
+        }
+
+        .voice-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            font-size: 1.125rem;
+        }
+
+        .voice-details {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .voice-flag {
+            width: 20px;
+            height: 15px;
+            border-radius: 3px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 200px;
+        }
+
+        .control-item label {
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--bg-tertiary);
+            outline: none;
+            border: 1px solid var(--border);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4);
+        }
+
+        .btn:hover:not(:disabled)::before {
+            left: 100%;
+        }
+
+        .btn:disabled {
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning), #f97316);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--error), #dc2626);
+        }
+
+        .audio-player {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            margin: 24px 0;
+        }
+
+        .player-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .play-pause-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+
+        .play-pause-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4);
+        }
+
+        .audio-progress {
+            flex: 1;
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+            border: 1px solid var(--border);
+        }
+
+        .audio-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+
+        .time-display {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            min-width: 80px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .speed-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .speed-btn {
+            background: transparent;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+        }
+
+        .speed-btn.active {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: white;
+        }
+
+        .document-content {
+            line-height: 1.8;
+            font-size: 16px;
+            color: var(--text-primary);
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 24px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--bg-secondary);
+        }
+
+        .document-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .document-content::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
+        .document-content::-webkit-scrollbar-thumb {
+            background: var(--accent-primary);
+            border-radius: 4px;
+        }
+
+        .chunk-highlight {
+            background: linear-gradient(120deg, var(--accent-primary), var(--accent-secondary));
+            padding: 2px 6px;
+            border-radius: 6px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+        }
+
+        .status {
+            text-align: center;
+            padding: 16px 24px;
+            border-radius: 12px;
+            margin: 16px 0;
+            font-weight: 600;
+            border: 1px solid;
+        }
+
+        .status.info {
+            background: rgba(59, 130, 246, 0.1);
+            color: #60a5fa;
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .status.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .status.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: #34d399;
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .cache-status {
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid rgba(16, 185, 129, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            display: none;
+        }
+
+        .cache-content {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .cache-bar {
+            width: 200px;
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-left: auto;
+            border: 1px solid var(--border);
+        }
+
+        .cache-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success), #22c55e);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .server-status {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 16px;
+            margin: 20px 0;
+            text-align: center;
+            display: none;
+            font-weight: 600;
+        }
+
+        .server-status.online {
+            border-color: rgba(16, 185, 129, 0.5);
+            color: var(--success);
+            display: block;
+        }
+
+        .server-status.offline {
+            border-color: rgba(239, 68, 68, 0.5);
+            color: var(--error);
+            display: block;
+        }
+
+        .server-status.checking {
+            border-color: rgba(245, 158, 11, 0.5);
+            color: var(--warning);
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+            
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .voice-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Selection color */
+        ::selection {
+            background: rgba(79, 70, 229, 0.3);
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Document Reader Pro</h1>
+            <p>Advanced text-to-speech with natural AI voices for English and Portuguese documents</p>
+            
+            <div id="serverStatus" class="server-status checking">
+                Checking server connection...
+            </div>
+
+            <div id="corsWarning" class="server-status offline" style="display: none;">
+                CORS Error: Please serve this file from a web server, not file://
+                <br><small>Run: <code>python -m http.server 8080</code> or <code>npx http-server</code></small>
+            </div>
+            
+            <div class="language-tabs">
+                <button class="tab-button active" onclick="switchLanguage('english')">English</button>
+                <button class="tab-button" onclick="switchLanguage('portuguese')">Português</button>
+            </div>
+        </div>
+
+        <!-- English Section -->
+        <div id="english-content" class="tab-content active">
+            <div class="card">
+                <h3><span class="card-icon">📄</span>Upload Document</h3>
+                <div class="file-input-container">
+                    <input type="file" id="fileInputEn" class="file-input" accept=".pdf,.docx,.txt">
+                    <label for="fileInputEn" class="file-input-label">
+                        <div class="upload-icon">📄</div>
+                        <div style="font-weight: 600; font-size: 1.125rem;">Click to upload English document</div>
+                        <div style="color: var(--text-secondary);">Supports PDF, DOCX, and TXT files</div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><span class="card-icon">🎤</span>Choose Voice</h3>
+                <div class="voice-grid" id="voiceGridEn">
+                    <!-- English voices will be populated here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><span class="card-icon">⚙️</span>Reading Settings</h3>
+                <div class="control-group">
+                    <div class="control-item">
+                        <label for="chunkSizeEn">Words per chunk: <span id="chunkDisplayEn">10</span></label>
+                        <input type="range" id="chunkSizeEn" min="5" max="20" step="1" value="10">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><span class="card-icon">🎛️</span>Controls</h3>
+                
+                <!-- Caching Status -->
+                <div class="cache-status" id="cacheStatusEn">
+                    <div class="cache-content">
+                        <div id="cacheIconEn">📦</div>
+                        <div>
+                            <strong>Audio Cache:</strong> 
+                            <span id="cacheProgressEn">0/0 chunks cached</span>
+                        </div>
+                        <div class="cache-bar">
+                            <div id="cacheBarFillEn" class="cache-bar-fill"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="audio-player" id="audioPlayerEn" style="display: none;">
+                    <div class="player-controls">
+                        <button class="play-pause-btn" id="playPauseBtnEn">▶</button>
+                        <div class="audio-progress" id="audioProgressEn">
+                            <div class="audio-progress-fill" id="audioProgressFillEn"></div>
+                        </div>
+                        <div class="time-display" id="timeDisplayEn">0:00 / 0:00</div>
+                    </div>
+                    <div class="speed-controls">
+                        <span style="color: var(--text-secondary); font-size: 0.75rem; font-weight: 600;">Speed:</span>
+                        <button class="speed-btn" onclick="setSpeed('en', 0.75)">0.75x</button>
+                        <button class="speed-btn active" onclick="setSpeed('en', 1.0)">1.0x</button>
+                        <button class="speed-btn" onclick="setSpeed('en', 1.25)">1.25x</button>
+                        <button class="speed-btn" onclick="setSpeed('en', 1.5)">1.5x</button>
+                        <button class="speed-btn" onclick="setSpeed('en', 2.0)">2.0x</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <button id="startReadingEn" class="btn" disabled>Start Reading</button>
+                    <button id="stopReadingEn" class="btn btn-secondary" disabled>Stop</button>
+                    <button id="testVoiceEn" class="btn btn-secondary" disabled>Test Voice</button>
+                    <button onclick="window.documentReader.readers.en.clearCache()" class="btn btn-warning">Clear Cache</button>
+                </div>
+            </div>
+
+            <div id="statusEn" class="status info" style="display: none;"></div>
+
+            <div class="card">
+                <h3><span class="card-icon">📖</span>Document Content</h3>
+                <div id="documentContentEn" class="document-content">
+                    <p style="text-align: center; color: var(--text-secondary); font-style: italic;">
+                        Upload an English document to begin reading
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Portuguese Section -->
+        <div id="portuguese-content" class="tab-content">
+            <div class="card">
+                <h3><span class="card-icon">📄</span>Carregar Documento</h3>
+                <div class="file-input-container">
+                    <input type="file" id="fileInputPt" class="file-input" accept=".pdf,.docx,.txt">
+                    <label for="fileInputPt" class="file-input-label">
+                        <div class="upload-icon">📄</div>
+                        <div style="font-weight: 600; font-size: 1.125rem;">Clique para carregar documento em português</div>
+                        <div style="color: var(--text-secondary);">Suporta arquivos PDF, DOCX e TXT</div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><span class="card-icon">🎤</span>Escolher Voz</h3>
+                <div class="voice-grid" id="voiceGridPt">
+                    <!-- Portuguese voices will be populated here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><span class="card-icon">⚙️</span>Configurações de Leitura</h3>
+                <div class="control-group">
+                    <div class="control-item">
+                        <label for="chunkSizePt">Palavras por bloco: <span id="chunkDisplayPt">10</span></label>
+                        <input type="range" id="chunkSizePt" min="5" max="20" step="1" value="10">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><span class="card-icon">🎛️</span>Controles</h3>
+                
+                <!-- Caching Status -->
+                <div class="cache-status" id="cacheStatusPt">
+                    <div class="cache-content">
+                        <div id="cacheIconPt">📦</div>
+                        <div>
+                            <strong>Cache de Áudio:</strong> 
+                            <span id="cacheProgressPt">0/0 blocos armazenados</span>
+                        </div>
+                        <div class="cache-bar">
+                            <div id="cacheBarFillPt" class="cache-bar-fill"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="audio-player" id="audioPlayerPt" style="display: none;">
+                    <div class="player-controls">
+                        <button class="play-pause-btn" id="playPauseBtnPt">▶</button>
+                        <div class="audio-progress" id="audioProgressPt">
+                            <div class="audio-progress-fill" id="audioProgressFillPt"></div>
+                        </div>
+                        <div class="time-display" id="timeDisplayPt">0:00 / 0:00</div>
+                    </div>
+                    <div class="speed-controls">
+                        <span style="color: var(--text-secondary); font-size: 0.75rem; font-weight: 600;">Velocidade:</span>
+                        <button class="speed-btn" onclick="setSpeed('pt', 0.75)">0.75x</button>
+                        <button class="speed-btn active" onclick="setSpeed('pt', 1.0)">1.0x</button>
+                        <button class="speed-btn" onclick="setSpeed('pt', 1.25)">1.25x</button>
+                        <button class="speed-btn" onclick="setSpeed('pt', 1.5)">1.5x</button>
+                        <button class="speed-btn" onclick="setSpeed('pt', 2.0)">2.0x</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <button id="startReadingPt" class="btn" disabled>Iniciar Leitura</button>
+                    <button id="stopReadingPt" class="btn btn-secondary" disabled>Parar</button>
+                    <button id="testVoicePt" class="btn btn-secondary" disabled>Testar Voz</button>
+                    <button onclick="window.documentReader.readers.pt.clearCache()" class="btn btn-warning">Limpar Cache</button>
+                </div>
+            </div>
+
+            <div id="statusPt" class="status info" style="display: none;"></div>
+
+            <div class="card">
+                <h3><span class="card-icon">📖</span>Conteúdo do Documento</h3>
+                <div id="documentContentPt" class="document-content">
+                    <p style="text-align: center; color: var(--text-secondary); font-style: italic;">
+                        Carregue um documento em português para começar a leitura
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global functions - defined first
+        function detectFileProtocol() {
+            if (window.location.protocol === 'file:') {
+                const corsWarning = document.getElementById('corsWarning');
+                const serverStatus = document.getElementById('serverStatus');
+                
+                if (corsWarning && serverStatus) {
+                    corsWarning.style.display = 'block';
+                    serverStatus.style.display = 'none';
+                }
+                return true;
+            }
+            return false;
+        }
+
+        async function checkServerStatus() {
+            // Don't check server if running from file://
+            if (detectFileProtocol()) return;
+            
+            const serverStatus = document.getElementById('serverStatus');
+            if (!serverStatus) return;
+            
+            try {
+                // Set checking status
+                serverStatus.textContent = 'Checking server connection...';
+                serverStatus.className = 'server-status checking';
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+                
+                const response = await fetch('http://localhost:3000/api/health', {
+                    method: 'GET',
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    serverStatus.textContent = 'Backend server is running';
+                    serverStatus.className = 'server-status online';
+                    console.log('Server health check passed:', data);
+                } else {
+                    throw new Error(`Server responded with status: ${response.status}`);
+                }
+            } catch (error) {
+                console.warn('Server health check failed:', error.message);
+                
+                if (error.name === 'AbortError') {
+                    serverStatus.textContent = 'Server connection timeout - Please start: node server.js';
+                } else {
+                    serverStatus.textContent = 'Backend server offline - Please run: node server.js';
+                }
+                serverStatus.className = 'server-status offline';
+            }
+        }
+
+        function switchLanguage(language) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update content visibility
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`${language}-content`).classList.add('active');
+            
+            // Update current language
+            if (window.documentReader) {
+                window.documentReader.currentLanguage = language === 'english' ? 'en' : 'pt';
+            }
+        }
+
+        function setSpeed(language, speed) {
+            const reader = window.documentReader.readers[language];
+            reader.playbackSpeed = speed;
+            
+            // Update active speed button
+            document.querySelectorAll(`#${language === 'en' ? 'english' : 'portuguese'}-content .speed-btn`).forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Apply speed to current audio if playing
+            if (reader.currentAudio) {
+                reader.currentAudio.playbackRate = speed;
+            }
+        }
+
+        class EnhancedDocumentReader {
+            constructor() {
+                this.readers = {
+                    en: new LanguageReader('en'),
+                    pt: new LanguageReader('pt')
+                };
+                this.currentLanguage = 'en';
+                
+                this.initializeElements();
+                this.setupEventListeners();
+                this.populateVoices();
+            }
+
+            initializeElements() {
+                // Initialize both language readers
+                this.readers.en.initializeElements('En');
+                this.readers.pt.initializeElements('Pt');
+            }
+
+            setupEventListeners() {
+                this.readers.en.setupEventListeners('En');
+                this.readers.pt.setupEventListeners('Pt');
+            }
+
+            populateVoices() {
+                this.readers.en.populateVoices();
+                this.readers.pt.populateVoices();
+            }
+        }
+
+        class LanguageReader {
+            constructor(language) {
+                this.language = language;
+                this.currentDocument = null;
+                this.currentChunks = [];
+                this.currentChunkIndex = 0;
+                this.isPlaying = false;
+                this.selectedVoice = language === 'en' ? 'Brian' : 'Ricardo';
+                this.chunkSize = 10;
+                this.currentAudio = null;
+                this.audioBlobs = new Map(); // Cache downloaded audio
+                this.playbackSpeed = 1.0;
+                this.preloadQueue = []; // Queue for preloading audio
+                this.isPreloading = false;
+                this.preloadedCount = 0;
+                this.maxPreloadChunks = 15; // Preload up to 15 chunks (roughly 5 minutes)
+
+                // Voice options that are confirmed to work with TTSMP3 API
+                this.availableVoices = language === 'en' ? [
+                    { name: 'Brian', language: 'English (US)', gender: 'Male', langCode: 'en-US', flag: '🇺🇸', apiName: 'Brian' },
+                    { name: 'Amy', language: 'English (US)', gender: 'Female', langCode: 'en-US', flag: '🇺🇸', apiName: 'Amy' },
+                    { name: 'Emma', language: 'English (UK)', gender: 'Female', langCode: 'en-GB', flag: '🇬🇧', apiName: 'Emma' },
+                    { name: 'Russell', language: 'English (AU)', gender: 'Male', langCode: 'en-AU', flag: '🇦🇺', apiName: 'Russell' },
+                ] : [
+                    { name: 'Ricardo', language: 'Português (Brasil)', gender: 'Masculino', langCode: 'pt-BR', flag: '🇧🇷', apiName: 'Ricardo' },
+                    { name: 'Vitoria', language: 'Português (Brasil)', gender: 'Feminino', langCode: 'pt-BR', flag: '🇧🇷', apiName: 'Vitoria' },
+                    { name: 'Ines', language: 'Português (Portugal)', gender: 'Feminino', langCode: 'pt-PT', flag: '🇵🇹', apiName: 'Ines' },
+                    { name: 'Camila', language: 'Português (Brasil)', gender: 'Feminino', langCode: 'pt-BR', flag: '🇧🇷', apiName: 'Camila' },
+                ];
+            }
+
+            initializeElements(suffix) {
+                this.fileInput = document.getElementById(`fileInput${suffix}`);
+                this.voiceGrid = document.getElementById(`voiceGrid${suffix}`);
+                this.documentContent = document.getElementById(`documentContent${suffix}`);
+                this.startReadingBtn = document.getElementById(`startReading${suffix}`);
+                this.stopReadingBtn = document.getElementById(`stopReading${suffix}`);
+                this.testVoiceBtn = document.getElementById(`testVoice${suffix}`);
+                this.chunkSizeRange = document.getElementById(`chunkSize${suffix}`);
+                this.chunkDisplay = document.getElementById(`chunkDisplay${suffix}`);
+                this.status = document.getElementById(`status${suffix}`);
+                this.audioPlayer = document.getElementById(`audioPlayer${suffix}`);
+                this.playPauseBtn = document.getElementById(`playPauseBtn${suffix}`);
+                this.audioProgress = document.getElementById(`audioProgress${suffix}`);
+                this.audioProgressFill = document.getElementById(`audioProgressFill${suffix}`);
+                this.timeDisplay = document.getElementById(`timeDisplay${suffix}`);
+                this.cacheStatus = document.getElementById(`cacheStatus${suffix}`);
+                this.cacheProgress = document.getElementById(`cacheProgress${suffix}`);
+                this.cacheBarFill = document.getElementById(`cacheBarFill${suffix}`);
+                this.cacheIcon = document.getElementById(`cacheIcon${suffix}`);
+            }
+
+            setupEventListeners(suffix) {
+                this.fileInput.addEventListener('change', (e) => this.handleDocumentUpload(e));
+                this.startReadingBtn.addEventListener('click', () => this.startReading());
+                this.stopReadingBtn.addEventListener('click', () => this.stopReading());
+                this.testVoiceBtn.addEventListener('click', () => this.testVoice());
+                this.chunkSizeRange.addEventListener('input', (e) => this.updateChunkSize(e.target.value));
+                this.playPauseBtn.addEventListener('click', () => this.togglePlayPause());
+                this.audioProgress.addEventListener('click', (e) => this.seekAudio(e));
+            }
+
+            populateVoices() {
+                this.voiceGrid.innerHTML = '';
+                
+                this.availableVoices.forEach((voice, index) => {
+                    const voiceElement = document.createElement('div');
+                    voiceElement.className = 'voice-option';
+                    if (voice.name === this.selectedVoice) {
+                        voiceElement.classList.add('selected');
+                    }
+                    
+                    voiceElement.innerHTML = `
+                        <div class="voice-name">${voice.name}</div>
+                        <div class="voice-details">
+                            <span class="voice-flag">${voice.flag}</span>
+                            <span>${voice.gender} • ${voice.language}</span>
+                        </div>
+                    `;
+                    
+                    voiceElement.addEventListener('click', () => {
+                        this.voiceGrid.querySelectorAll('.voice-option').forEach(el => el.classList.remove('selected'));
+                        voiceElement.classList.add('selected');
+                        this.selectedVoice = voice.name;
+                        this.updateButtonStates();
+                    });
+                    
+                    this.voiceGrid.appendChild(voiceElement);
+                });
+
+                this.testVoiceBtn.disabled = false;
+            }
+
+            async handleDocumentUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                this.showStatus(this.language === 'en' ? 'Processing document...' : 'Processando documento...', 'info');
+                
+                try {
+                    let text = '';
+                    const fileExtension = file.name.split('.').pop().toLowerCase();
+
+                    switch (fileExtension) {
+                        case 'pdf':
+                            text = await this.extractTextFromPDF(file);
+                            break;
+                        case 'docx':
+                            text = await this.extractTextFromDOCX(file);
+                            break;
+                        case 'txt':
+                            text = await this.extractTextFromTXT(file);
+                            break;
+                        default:
+                            throw new Error(`Unsupported file format: ${fileExtension}`);
+                    }
+
+                    if (!text.trim()) {
+                        throw new Error('No text content found in the document');
+                    }
+
+                    this.currentDocument = text;
+                    this.currentChunks = this.splitIntoChunks(text);
+                    this.displayDocument();
+                    this.updateButtonStates();
+                    
+                    const message = this.language === 'en' 
+                        ? `Document loaded successfully! (${this.currentChunks.length} chunks)`
+                        : `Documento carregado com sucesso! (${this.currentChunks.length} blocos)`;
+                    this.showStatus(message, 'success');
+
+                } catch (error) {
+                    console.error('Error processing document:', error);
+                    const message = this.language === 'en' 
+                        ? `Error: ${error.message}`
+                        : `Erro: ${error.message}`;
+                    this.showStatus(message, 'error');
+                }
+            }
+
+            async extractTextFromPDF(file) {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                let text = '';
+
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    text += pageText + '\n';
+                }
+
+                return text;
+            }
+
+            async extractTextFromDOCX(file) {
+                const arrayBuffer = await file.arrayBuffer();
+                const result = await mammoth.extractRawText({ arrayBuffer });
+                return result.value;
+            }
+
+            async extractTextFromTXT(file) {
+                return await file.text();
+            }
+
+            splitIntoChunks(text) {
+                const words = text.split(/\s+/).filter(word => word.trim().length > 0);
+                const chunks = [];
+                
+                for (let i = 0; i < words.length; i += this.chunkSize) {
+                    const chunk = words.slice(i, i + this.chunkSize).join(' ');
+                    chunks.push({
+                        text: chunk,
+                        startIndex: i,
+                        endIndex: Math.min(i + this.chunkSize - 1, words.length - 1)
+                    });
+                }
+                
+                return chunks;
+            }
+
+            displayDocument() {
+                const words = this.currentDocument.split(/\s+/);
+                let html = '';
+                
+                words.forEach((word, index) => {
+                    html += `<span id="word-${this.language}-${index}" class="word">${word} </span>`;
+                });
+                
+                this.documentContent.innerHTML = html;
+            }
+
+            updateChunkSize(value) {
+                this.chunkSize = parseInt(value);
+                this.chunkDisplay.textContent = this.chunkSize;
+                
+                if (this.currentDocument) {
+                    this.currentChunks = this.splitIntoChunks(this.currentDocument);
+                    this.displayDocument();
+                }
+            }
+
+            async startReading() {
+                if (!this.currentChunks.length) {
+                    const message = this.language === 'en' 
+                        ? 'Please upload a document first!'
+                        : 'Por favor, carregue um documento primeiro!';
+                    this.showStatus(message, 'error');
+                    return;
+                }
+
+                this.isPlaying = true;
+                this.currentChunkIndex = 0;
+                this.updateButtonStates();
+                
+                const message = this.language === 'en' 
+                    ? 'Preparing audio playlist...'
+                    : 'Preparando playlist de áudio...';
+                this.showStatus(message, 'info');
+
+                // Start preloading audio chunks in background
+                this.startPreloadingAudio();
+
+                await this.readChunk(this.currentChunkIndex);
+            }
+
+            async startPreloadingAudio() {
+                if (this.isPreloading) return;
+                
+                this.isPreloading = true;
+                this.preloadedCount = 0;
+                this.cacheStatus.style.display = 'block';
+                this.updateCacheStatus();
+                
+                const message = this.language === 'en' 
+                    ? `Caching audio for offline reading...`
+                    : `Armazenando áudio para leitura offline...`;
+                this.showStatus(message, 'info');
+
+                // Preload chunks starting from current position
+                for (let i = this.currentChunkIndex; i < Math.min(this.currentChunks.length, this.currentChunkIndex + this.maxPreloadChunks); i++) {
+                    try {
+                        const cacheKey = `${this.selectedVoice}-${i}`;
+                        
+                        if (!this.audioBlobs.has(cacheKey)) {
+                            const chunk = this.currentChunks[i];
+                            const audioUrl = await this.generateAudioFromProxy(chunk.text, this.selectedVoice);
+                            const audioBlob = await this.downloadAudio(audioUrl);
+                            this.audioBlobs.set(cacheKey, audioBlob);
+                            
+                            this.preloadedCount++;
+                            this.updateCacheStatus();
+                            
+                            // Small delay to prevent overwhelming the server
+                            await new Promise(resolve => setTimeout(resolve, 200));
+                        }
+                    } catch (error) {
+                        console.warn(`Failed to preload chunk ${i}:`, error);
+                        // Continue preloading other chunks even if one fails
+                    }
+                }
+                
+                const finalMessage = this.language === 'en' 
+                    ? `Audio playlist ready! Cached ${this.preloadedCount} chunks for offline reading`
+                    : `Playlist de áudio pronta! ${this.preloadedCount} blocos armazenados para leitura offline`;
+                this.showStatus(finalMessage, 'success');
+                
+                this.isPreloading = false;
+            }
+
+            updateCacheStatus() {
+                if (this.cacheProgress && this.cacheBarFill) {
+                    const totalChunks = Math.min(this.maxPreloadChunks, this.currentChunks.length);
+                    const progressText = this.language === 'en' 
+                        ? `${this.preloadedCount}/${totalChunks} chunks cached`
+                        : `${this.preloadedCount}/${totalChunks} blocos armazenados`;
+                    
+                    this.cacheProgress.textContent = progressText;
+                    const percentage = (this.preloadedCount / totalChunks) * 100;
+                    this.cacheBarFill.style.width = `${percentage}%`;
+                }
+            }
+
+            async testVoice() {
+                const testText = this.language === 'en' 
+                    ? "Hello! This is a test of the selected voice. How does it sound?"
+                    : "Olá! Este é um teste da voz selecionada em português. Como soa para você?";
+                    
+                const message = this.language === 'en' 
+                    ? 'Testing voice...'
+                    : 'Testando voz...';
+                this.showStatus(message, 'info');
+                
+                try {
+                    // First check if server is reachable
+                    await this.checkServerConnection();
+                    
+                    const audioUrl = await this.generateAudioFromProxy(testText, this.selectedVoice);
+                    const audioBlob = await this.downloadAudio(audioUrl);
+                    
+                    // Show audio player for test
+                    this.audioPlayer.style.display = 'block';
+                    await this.playAudioBlob(audioBlob);
+                    
+                    const successMessage = this.language === 'en' 
+                        ? 'Voice test completed successfully!'
+                        : 'Teste de voz concluído com sucesso!';
+                    this.showStatus(successMessage, 'success');
+                } catch (error) {
+                    console.error('Voice test error:', error);
+                    
+                    // If the current voice failed, try to suggest an alternative
+                    if (error.message.includes('not supported') || error.message.includes('TTSMP3 API failed')) {
+                        await this.handleVoiceFailure(error);
+                    } else {
+                        let errorMessage = this.language === 'en' 
+                            ? `Voice test failed: ${error.message}`
+                            : `Teste de voz falhou: ${error.message}`;
+                        
+                        if (error.message.includes('Cannot connect to server')) {
+                            errorMessage = this.language === 'en' 
+                                ? 'Backend server not running! Please start your Node.js server with: node server.js'
+                                : 'Servidor backend não está rodando! Por favor, inicie seu servidor Node.js com: node server.js';
+                        }
+                        
+                        this.showStatus(errorMessage, 'error');
+                    }
+                }
+            }
+
+            async handleVoiceFailure(error) {
+                const fallbackVoices = this.language === 'en' 
+                    ? ['Brian', 'Amy', 'Emma', 'Russell'] 
+                    : ['Ricardo', 'Vitoria', 'Camila', 'Ines'];
+                
+                // Find a working fallback voice
+                for (const voiceName of fallbackVoices) {
+                    if (voiceName === this.selectedVoice) continue; // Skip the failed voice
+                    
+                    try {
+                        const testText = this.language === 'en' ? "Testing fallback voice" : "Testando voz alternativa";
+                        await this.generateAudioFromProxy(testText, voiceName);
+                        
+                        // If successful, switch to this voice
+                        this.selectedVoice = voiceName;
+                        this.updateVoiceSelection();
+                        
+                        const message = this.language === 'en' 
+                            ? `Original voice failed. Switched to "${voiceName}" which is working properly.`
+                            : `Voz original falhou. Alterado para "${voiceName}" que está funcionando corretamente.`;
+                        this.showStatus(message, 'info');
+                        return;
+                    } catch (fallbackError) {
+                        console.warn(`Fallback voice ${voiceName} also failed:`, fallbackError);
+                        continue;
+                    }
+                }
+                
+                // If no fallback worked
+                const message = this.language === 'en' 
+                    ? `Voice "${this.selectedVoice}" is not available. Please try a different voice or check your server configuration.`
+                    : `Voz "${this.selectedVoice}" não está disponível. Tente uma voz diferente ou verifique a configuração do servidor.`;
+                this.showStatus(message, 'error');
+            }
+
+            updateVoiceSelection() {
+                // Update the UI to reflect the new voice selection
+                this.voiceGrid.querySelectorAll('.voice-option').forEach(el => el.classList.remove('selected'));
+                
+                const selectedVoiceElement = Array.from(this.voiceGrid.querySelectorAll('.voice-option')).find(el => {
+                    return el.querySelector('.voice-name').textContent === this.selectedVoice;
+                });
+                
+                if (selectedVoiceElement) {
+                    selectedVoiceElement.classList.add('selected');
+                }
+            }
+
+            async checkServerConnection() {
+                try {
+                    const response = await fetch('http://localhost:3000/api/health', {
+                        method: 'GET',
+                        timeout: 5000
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Server is not responding properly');
+                    }
+                } catch (error) {
+                    throw new Error('Cannot connect to server. Please make sure your backend server is running on http://localhost:3000');
+                }
+            }
+
+            async readChunk(chunkIndex) {
+                if (chunkIndex >= this.currentChunks.length || !this.isPlaying) {
+                    this.stopReading();
+                    const message = this.language === 'en' 
+                        ? 'Reading completed!'
+                        : 'Leitura concluída!';
+                    this.showStatus(message, 'success');
+                    return;
+                }
+
+                const chunk = this.currentChunks[chunkIndex];
+                this.highlightChunk(chunkIndex);
+
+                try {
+                    // Check if audio is already cached
+                    let audioBlob = this.audioBlobs.get(`${this.selectedVoice}-${chunkIndex}`);
+                    
+                    if (!audioBlob) {
+                        // Generate and download audio (fallback for non-preloaded chunks)
+                        const loadingMessage = this.language === 'en' 
+                            ? 'Loading audio...'
+                            : 'Carregando áudio...';
+                        this.showStatus(loadingMessage, 'info');
+                        
+                        const audioUrl = await this.generateAudioFromProxy(chunk.text, this.selectedVoice);
+                        audioBlob = await this.downloadAudio(audioUrl);
+                        this.audioBlobs.set(`${this.selectedVoice}-${chunkIndex}`, audioBlob);
+                    }
+
+                    if (this.isPlaying) {
+                        await this.playAudioBlob(audioBlob);
+                        
+                        if (this.isPlaying) {
+                            this.currentChunkIndex++;
+                            setTimeout(() => this.readChunk(this.currentChunkIndex), 300);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error reading chunk:', error);
+                    const message = this.language === 'en' 
+                        ? 'Error loading audio. Continuing to next chunk...'
+                        : 'Erro ao carregar áudio. Continuando para o próximo bloco...';
+                    this.showStatus(message, 'error');
+                    this.currentChunkIndex++;
+                    setTimeout(() => this.readChunk(this.currentChunkIndex), 1000);
+                }
+            }
+
+            async generateAudioFromProxy(text, voiceName) {
+                const apiUrl = 'http://localhost:3000/api/tts';
+                
+                // Get the selected voice details for language code
+                const selectedVoiceData = this.availableVoices.find(v => v.name === voiceName);
+                const languageCode = selectedVoiceData ? selectedVoiceData.langCode : (this.language === 'en' ? 'en-US' : 'pt-BR');
+                const apiVoiceName = selectedVoiceData ? selectedVoiceData.apiName : voiceName;
+                
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ 
+                            text, 
+                            voiceName: apiVoiceName, // Use the API-compatible voice name
+                            languageCode,
+                            originalVoiceName: voiceName // For debugging purposes
+                        }),
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        console.error('TTS API Error:', errorData);
+                        
+                        // Provide specific error messages for common issues
+                        if (errorData.details && errorData.details.includes('TTSMP3 API failed')) {
+                            throw new Error(`Voice "${voiceName}" is not supported by the TTS service. Please try a different voice.`);
+                        }
+                        
+                        throw new Error(`TTS service error (${response.status}): ${errorData.error || 'Unknown error'}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    if (result.audioUrl) {
+                        return result.audioUrl;
+                    } else {
+                        throw new Error(`No audio URL returned for voice "${voiceName}". This voice may not be available.`);
+                    }
+                } catch (error) {
+                    console.error('TTS Error for voice:', voiceName, error);
+                    
+                    // If it's a network error, provide helpful message
+                    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                        throw new Error('Cannot connect to TTS server. Please ensure your backend server is running.');
+                    }
+                    
+                    throw error;
+                }
+            }
+
+            async downloadAudio(audioUrl) {
+                try {
+                    // Try direct fetch first
+                    const response = await fetch(audioUrl, {
+                        mode: 'cors',
+                        method: 'GET'
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to download audio: ${response.status}`);
+                    }
+                    return await response.blob();
+                } catch (error) {
+                    console.warn('Direct fetch failed, trying proxy download:', error);
+                    
+                    // Fallback: Use proxy to download audio
+                    try {
+                        const proxyResponse = await fetch('http://localhost:3000/api/download-audio', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ audioUrl }),
+                        });
+                        
+                        if (!proxyResponse.ok) {
+                            throw new Error(`Proxy download failed: ${proxyResponse.status}`);
+                        }
+                        
+                        return await proxyResponse.blob();
+                    } catch (proxyError) {
+                        console.error('Proxy download also failed:', proxyError);
+                        throw new Error('Failed to download audio through both direct and proxy methods');
+                    }
+                }
+            }
+
+            async playAudioBlob(audioBlob) {
+                return new Promise((resolve, reject) => {
+                    if (this.currentAudio) {
+                        this.currentAudio.pause();
+                        this.currentAudio = null;
+                    }
+
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    this.currentAudio = new Audio(audioUrl);
+                    this.currentAudio.playbackRate = this.playbackSpeed;
+
+                    // Show audio player
+                    this.audioPlayer.style.display = 'block';
+                    this.playPauseBtn.textContent = '⏸';
+
+                    // Update progress during playback
+                    this.currentAudio.ontimeupdate = () => {
+                        if (this.currentAudio) {
+                            const progress = (this.currentAudio.currentTime / this.currentAudio.duration) * 100;
+                            this.audioProgressFill.style.width = `${progress}%`;
+                            this.updateTimeDisplay();
+                        }
+                    };
+
+                    this.currentAudio.onended = () => {
+                        URL.revokeObjectURL(audioUrl);
+                        this.playPauseBtn.textContent = '▶';
+                        this.audioProgressFill.style.width = '0%';
+                        resolve();
+                    };
+
+                    this.currentAudio.onerror = (error) => {
+                        URL.revokeObjectURL(audioUrl);
+                        console.error('Audio playback error:', error);
+                        reject(error);
+                    };
+
+                    this.currentAudio.oncanplaythrough = () => {
+                        this.currentAudio.play().catch(reject);
+                    };
+
+                    this.currentAudio.load();
+                });
+            }
+
+            togglePlayPause() {
+                if (this.currentAudio) {
+                    if (this.currentAudio.paused) {
+                        this.currentAudio.play();
+                        this.playPauseBtn.textContent = '⏸';
+                    } else {
+                        this.currentAudio.pause();
+                        this.playPauseBtn.textContent = '▶';
+                    }
+                }
+            }
+
+            seekAudio(event) {
+                if (this.currentAudio) {
+                    const rect = this.audioProgress.getBoundingClientRect();
+                    const clickX = event.clientX - rect.left;
+                    const seekTime = (clickX / rect.width) * this.currentAudio.duration;
+                    this.currentAudio.currentTime = seekTime;
+                }
+            }
+
+            updateTimeDisplay() {
+                if (this.currentAudio) {
+                    const current = this.formatTime(this.currentAudio.currentTime);
+                    const total = this.formatTime(this.currentAudio.duration);
+                    this.timeDisplay.textContent = `${current} / ${total}`;
+                }
+            }
+
+            formatTime(seconds) {
+                if (isNaN(seconds)) return '0:00';
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            stopReading() {
+                this.isPlaying = false;
+                this.currentChunkIndex = 0;
+                
+                if (this.currentAudio) {
+                    this.currentAudio.pause();
+                    this.currentAudio = null;
+                }
+                
+                this.audioPlayer.style.display = 'none';
+                this.clearHighlights();
+                this.updateButtonStates();
+                
+                // Keep cache status visible to show cached content
+                if (this.preloadedCount > 0) {
+                    const cacheSize = this.getCacheSize();
+                    const message = this.language === 'en' 
+                        ? `Reading stopped. ${this.preloadedCount} chunks cached (${cacheSize}) ready for offline reading.`
+                        : `Leitura interrompida. ${this.preloadedCount} blocos armazenados (${cacheSize}) prontos para leitura offline.`;
+                    this.showStatus(message, 'info');
+                } else {
+                    const message = this.language === 'en' 
+                        ? 'Reading stopped'
+                        : 'Leitura interrompida';
+                    this.showStatus(message, 'info');
+                }
+            }
+
+            getCacheSize() {
+                let totalSize = 0;
+                this.audioBlobs.forEach((blob) => {
+                    totalSize += blob.size;
+                });
+                return this.formatFileSize(totalSize);
+            }
+
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            clearCache() {
+                this.audioBlobs.clear();
+                this.preloadedCount = 0;
+                this.updateCacheStatus();
+                if (this.cacheStatus) {
+                    this.cacheStatus.style.display = 'none';
+                }
+                
+                const message = this.language === 'en' 
+                    ? 'Audio cache cleared'
+                    : 'Cache de áudio limpo';
+                this.showStatus(message, 'info');
+            }
+
+            highlightChunk(chunkIndex) {
+                this.clearHighlights();
+                const chunk = this.currentChunks[chunkIndex];
+                
+                for (let i = chunk.startIndex; i <= chunk.endIndex; i++) {
+                    const wordElement = document.getElementById(`word-${this.language}-${i}`);
+                    if (wordElement) {
+                        wordElement.classList.add('chunk-highlight');
+                    }
+                }
+
+                // Scroll to the highlighted chunk
+                const firstWord = document.getElementById(`word-${this.language}-${chunk.startIndex}`);
+                if (firstWord) {
+                    firstWord.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+
+            clearHighlights() {
+                document.querySelectorAll('.chunk-highlight').forEach(el => {
+                    el.classList.remove('chunk-highlight');
+                });
+            }
+
+            updateButtonStates() {
+                const hasDocument = this.currentDocument && this.currentChunks.length > 0;
+                
+                this.startReadingBtn.disabled = !hasDocument || this.isPlaying;
+                this.stopReadingBtn.disabled = !this.isPlaying;
+                
+                // Update button text based on cache status
+                if (hasDocument && this.preloadedCount > 0 && !this.isPlaying) {
+                    const offlineText = this.language === 'en' 
+                        ? `Start Reading (${this.preloadedCount} cached)`
+                        : `Iniciar Leitura (${this.preloadedCount} armazenados)`;
+                    this.startReadingBtn.textContent = offlineText;
+                } else {
+                    const normalText = this.language === 'en' 
+                        ? 'Start Reading'
+                        : 'Iniciar Leitura';
+                    this.startReadingBtn.textContent = normalText;
+                }
+            }
+
+            showStatus(message, type) {
+                this.status.textContent = message;
+                this.status.className = `status ${type}`;
+                this.status.style.display = 'block';
+                
+                if (type === 'success' || type === 'info') {
+                    setTimeout(() => {
+                        this.status.style.display = 'none';
+                    }, 3000);
+                }
+            }
+        }
+
+        // Initialize the application when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            // Configure PDF.js worker
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+            
+            // Check server status on page load
+            checkServerStatus();
+            
+            // Check server status every 10 seconds
+            setInterval(checkServerStatus, 10000);
+            
+            // Initialize the document reader
+            window.documentReader = new EnhancedDocumentReader();
+            
+            console.log('Enhanced Multi-Language Document Reader initialized successfully!');
+        });
+    </script>
+</body>
+</html>

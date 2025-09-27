@@ -1,0 +1,50 @@
+{
+  "name": "multi-language-pdf-reader",
+  "version": "1.0.0",
+  "description": "Enhanced PDF reader with premium TTS voices for English and Portuguese, featuring audio caching and offline reading capabilities",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "frontend": "python -m http.server 8080",
+    "frontend-node": "node frontend-server.js",
+    "both": "concurrently \"npm run start\" \"npm run frontend\"",
+    "install-global": "npm install -g http-server nodemon concurrently"
+  },
+  "keywords": [
+    "pdf-reader",
+    "text-to-speech",
+    "tts",
+    "multilingual",
+    "offline-reading",
+    "audio-caching",
+    "english",
+    "portuguese",
+    "accessibility"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "express-rate-limit": "^7.1.5",
+    "node-fetch": "^2.6.7",
+    "form-data": "^4.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/multi-language-pdf-reader.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/multi-language-pdf-reader/issues"
+  },
+  "homepage": "https://github.com/yourusername/multi-language-pdf-reader#readme"
+}
