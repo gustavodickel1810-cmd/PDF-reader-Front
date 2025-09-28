@@ -970,20 +970,34 @@
             }
         }
 
+        /**
+         * UPDATED: Applies speed to the current audio and sets it as the persistent
+         * speed for all subsequent audio chunks.
+         */
         function setSpeed(language, speed) {
             const reader = window.documentReader.readers[language];
+            
+            // 1. Set the global persistent speed for this language reader
             reader.playbackSpeed = speed;
             
-            // Update active speed button
-            document.querySelectorAll(`#${language === 'en' ? 'english' : 'portuguese'}-content .speed-btn`).forEach(btn => {
+            // 2. Update active speed button robustly
+            const containerId = language === 'en' ? 'english-content' : 'portuguese-content';
+            document.querySelectorAll(`#${containerId} .speed-controls .speed-btn`).forEach(btn => {
                 btn.classList.remove('active');
+                // Check if the button's text value matches the speed value
+                if (parseFloat(btn.textContent) === speed) {
+                    btn.classList.add('active');
+                }
             });
-            event.target.classList.add('active');
             
-            // Apply speed to current audio if playing
+            // 3. Apply speed to the currently playing audio (if any)
+            // This ensures an immediate change for the currently playing chunk.
             if (reader.currentAudio) {
                 reader.currentAudio.playbackRate = speed;
             }
+            
+            // The LanguageReader.playAudioBlob method automatically uses 
+            // the updated reader.playbackSpeed for ALL subsequent chunks.
         }
 
         class EnhancedDocumentReader {
@@ -1027,12 +1041,12 @@
                 this.chunkSize = 10;
                 this.currentAudio = null;
                 this.audioBlobs = new Map(); // Cache downloaded audio
-                this.playbackSpeed = 1.0;
+                this.playbackSpeed = 1.0; // Persistent playback speed
                 this.preloadQueue = []; // Queue for preloading audio
                 this.isPreloading = false;
                 this.preloadedCount = 0;
                 this.maxPreloadChunks = 15; // Preload up to 15 chunks (roughly 5 minutes)
-                this.lastSkipBackClickTime = 0; // NEW: For double-click logic
+                this.lastSkipBackClickTime = 0; // For double-click logic
 
                 // Voice options that are confirmed to work with TTSMP3 API
                 this.availableVoices = language === 'en' ? [
@@ -1086,13 +1100,13 @@
                 this.playPauseBtn.addEventListener('click', () => this.togglePlayPause());
                 this.audioProgress.addEventListener('click', (e) => this.seekAudio(e));
 
-                // UPDATED: Skip button listeners
+                // Skip button listeners
                 this.skipBackBtn.addEventListener('click', () => this.skipBack());
                 this.skipAheadBtn.addEventListener('click', () => this.skipToNextChunk());
             }
 
             /**
-             * NEW: Implements the skip ahead logic: jump to the next audio chunk.
+             * Implements the skip ahead logic: jump to the next audio chunk.
              */
             skipToNextChunk() {
                 if (!this.isPlaying || this.currentChunkIndex >= this.currentChunks.length - 1) {
@@ -1113,7 +1127,7 @@
             }
 
             /**
-             * NEW: Implements the skip back logic: 
+             * Implements the skip back logic: 
              * 1. Single click: Reset current chunk to 0.
              * 2. Double click (within 2s): Jump to previous chunk.
              */
@@ -1634,7 +1648,8 @@
 
                     const audioUrl = URL.createObjectURL(audioBlob);
                     this.currentAudio = new Audio(audioUrl);
-                    this.currentAudio.playbackRate = this.playbackSpeed;
+                    // This is the key line: it uses the persistent speed setting for all new audio chunks.
+                    this.currentAudio.playbackRate = this.playbackSpeed; 
 
                     // Show audio player
                     this.audioPlayer.style.display = 'block';
