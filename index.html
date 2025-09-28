@@ -896,14 +896,12 @@
             </div>
         </div>
     </div>
-
     <script>
         // Global functions - defined first
         function detectFileProtocol() {
             if (window.location.protocol === 'file:') {
                 const corsWarning = document.getElementById('corsWarning');
                 const serverStatus = document.getElementById('serverStatus');
-                
                 if (corsWarning && serverStatus) {
                     corsWarning.style.display = 'block';
                     serverStatus.style.display = 'none';
@@ -916,25 +914,26 @@
         async function checkServerStatus() {
             // Don't check server if running from file://
             if (detectFileProtocol()) return;
-            
+
             const serverStatus = document.getElementById('serverStatus');
             if (!serverStatus) return;
-            
+
             try {
                 // Set checking status
                 serverStatus.textContent = 'Checking server connection...';
                 serverStatus.className = 'server-status checking';
-                
+
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-                
-                const response = await fetch('https://pdf-reader-back.onrender.com/api/health', {
-                    method: 'GET',
-                    signal: controller.signal
+
+                // NOTE: Using the hardcoded URL from the user's original file, assuming it's the backend.
+                const response = await fetch('https://pdf-reader-back.onrender.com/api/health', { 
+                    method: 'GET', 
+                    signal: controller.signal 
                 });
                 
                 clearTimeout(timeoutId);
-                
+
                 if (response.ok) {
                     const data = await response.json();
                     serverStatus.textContent = 'Backend server is running';
@@ -945,7 +944,6 @@
                 }
             } catch (error) {
                 console.warn('Server health check failed:', error.message);
-                
                 if (error.name === 'AbortError') {
                     serverStatus.textContent = 'Server connection timeout - Please start: node server.js';
                 } else {
@@ -959,11 +957,11 @@
             // Update tab buttons
             document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
-            
+
             // Update content visibility
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             document.getElementById(`${language}-content`).classList.add('active');
-            
+
             // Update current language
             if (window.documentReader) {
                 const langCode = language === 'english' ? 'en' : 'pt';
@@ -982,12 +980,11 @@
             
             // Update active speed button and apply to current audio
             reader.updateSpeedUI(); 
-            
+
             // Apply speed to current audio if playing (Immediate change)
             if (reader.currentAudio) {
                 reader.currentAudio.playbackRate = speed;
             }
-            
             // NOTE: The crucial part for *future* chunks is that playAudioBlob uses reader.playbackSpeed
         }
 
@@ -998,7 +995,6 @@
                     pt: new LanguageReader('pt')
                 };
                 this.currentLanguage = 'en';
-                
                 this.initializeElements();
                 this.setupEventListeners();
                 this.populateVoices();
@@ -1032,897 +1028,679 @@
                 this.currentChunks = [];
                 this.currentChunkIndex = 0;
                 this.isPlaying = false;
-                this.selectedVoice = language === 'en' ? 'Brian' : 'Ricardo';
+                
+                // --- VOICE UPDATE ---
+                // Set default voice (updated to 'Joanna' for English)
+                this.selectedVoice = language === 'en' ? 'Joanna' : 'Ricardo'; 
+                // --- END VOICE UPDATE ---
+
                 this.chunkSize = 10;
                 this.currentAudio = null;
                 this.audioBlobs = new Map(); // Cache downloaded audio
-                
+
                 // NEW: Initialize playback speed from localStorage or default to 1.0
                 const storedSpeed = localStorage.getItem(`readerSpeed_${language}`);
                 this.playbackSpeed = storedSpeed ? parseFloat(storedSpeed) : 1.0;
-
+                
                 this.preloadQueue = []; // Queue for preloading audio
                 this.isPreloading = false;
                 this.preloadedCount = 0;
                 this.maxPreloadChunks = 15; // Preload up to 15 chunks (roughly 5 minutes)
                 this.lastSkipBackClickTime = 0; // For double-click logic
 
-                // Voice options that are confirmed to work with TTSMP3 API
+                // --- VOICE UPDATE: CORRECT VOICE NAMES ---
                 this.availableVoices = language === 'en' ? [
-                    { name: 'Brian', language: 'English (US)', gender: 'Male', langCode: 'en-US', flag: '🇺🇸', apiName: 'Brian' },
-                    { name: 'Amy', language: 'English (US)', gender: 'Female', langCode: 'en-US', flag: '🇺🇸', apiName: 'Amy' },
-                    { name: 'Emma', language: 'English (UK)', gender: 'Female', langCode: 'en-GB', flag: '🇬🇧', apiName: 'Emma' },
-                    { name: 'Russell', language: 'English (AU)', gender: 'Male', langCode: 'en-AU', flag: '🇦🇺', apiName: 'Russell' },
+                    { name: 'Joanna', language: 'English (US)', gender: 'Female', langCode: 'en-US', flag: '🇺🇸', apiName: 'Joanna' },
+                    { name: 'Matthew', language: 'English (US)', gender: 'Male', langCode: 'en-US', flag: '🇺🇸', apiName: 'Matthew' },
+                    { name: 'Amy', language: 'English (UK)', gender: 'Female', langCode: 'en-GB', flag: '🇬🇧', apiName: 'Amy' },
+                    { name: 'George', language: 'English (UK)', gender: 'Male', langCode: 'en-GB', flag: '🇬🇧', apiName: 'George' },
                 ] : [
-                    { name: 'Ricardo', language: 'Português (Brasil)', gender: 'Masculino', langCode: 'pt-BR', flag: '🇧🇷', apiName: 'Ricardo' },
-                    { name: 'Vitoria', language: 'Português (Brasil)', gender: 'Feminino', langCode: 'pt-BR', flag: '🇧🇷', apiName: 'Vitoria' },
-                    { name: 'Ines', language: 'Português (Portugal)', gender: 'Feminino', langCode: 'pt-PT', flag: '🇵🇹', apiName: 'Ines' },
                     { name: 'Camila', language: 'Português (Brasil)', gender: 'Feminino', langCode: 'pt-BR', flag: '🇧🇷', apiName: 'Camila' },
+                    { name: 'Ricardo', language: 'Português (Brasil)', gender: 'Masculino', langCode: 'pt-BR', flag: '🇧🇷', apiName: 'Ricardo' },
+                    { name: 'Ines', language: 'Português (Portugal)', gender: 'Feminino', langCode: 'pt-PT', flag: '🇵🇹', apiName: 'Ines' },
+                    { name: 'Cristiano', language: 'Português (Portugal)', gender: 'Masculino', langCode: 'pt-PT', flag: '🇵🇹', apiName: 'Cristiano' },
                 ];
+                // --- END VOICE UPDATE ---
             }
 
             initializeElements(suffix) {
                 this.fileInput = document.getElementById(`fileInput${suffix}`);
                 this.voiceGrid = document.getElementById(`voiceGrid${suffix}`);
-                this.documentContent = document.getElementById(`documentContent${suffix}`);
+                this.chunkSizeInput = document.getElementById(`chunkSize${suffix}`);
+                this.chunkDisplay = document.getElementById(`chunkDisplay${suffix}`);
                 this.startReadingBtn = document.getElementById(`startReading${suffix}`);
                 this.stopReadingBtn = document.getElementById(`stopReading${suffix}`);
                 this.testVoiceBtn = document.getElementById(`testVoice${suffix}`);
-                this.chunkSizeRange = document.getElementById(`chunkSize${suffix}`);
-                this.chunkDisplay = document.getElementById(`chunkDisplay${suffix}`);
+                this.documentContent = document.getElementById(`documentContent${suffix}`);
                 this.status = document.getElementById(`status${suffix}`);
                 this.audioPlayer = document.getElementById(`audioPlayer${suffix}`);
                 this.playPauseBtn = document.getElementById(`playPauseBtn${suffix}`);
+                this.playIcon = document.getElementById(`playIcon${suffix}`);
+                this.pauseIcon = document.getElementById(`pauseIcon${suffix}`);
+                this.skipBackBtn = document.getElementById(`skipBackBtn${suffix}`);
+                this.skipAheadBtn = document.getElementById(`skipAheadBtn${suffix}`);
                 this.audioProgress = document.getElementById(`audioProgress${suffix}`);
                 this.audioProgressFill = document.getElementById(`audioProgressFill${suffix}`);
                 this.timeDisplay = document.getElementById(`timeDisplay${suffix}`);
+                this.speedControls = document.getElementById(`speedControls${suffix}`);
                 this.cacheStatus = document.getElementById(`cacheStatus${suffix}`);
                 this.cacheProgress = document.getElementById(`cacheProgress${suffix}`);
                 this.cacheBarFill = document.getElementById(`cacheBarFill${suffix}`);
-                this.cacheIcon = document.getElementById(`cacheIcon${suffix}`);
 
-                // Icon elements
-                this.playIcon = document.getElementById(`playIcon${suffix}`);
-                this.pauseIcon = document.getElementById(`pauseIcon${suffix}`);
-
-                // Skip buttons
-                this.skipBackBtn = document.getElementById(`skipBackBtn${suffix}`);
-                this.skipAheadBtn = document.getElementById(`skipAheadBtn${suffix}`);
-                
-                // Speed controls
-                this.speedControls = document.getElementById(`speedControls${suffix}`);
+                // Set initial chunk display value
+                this.chunkDisplay.textContent = this.chunkSizeInput.value;
             }
 
             setupEventListeners(suffix) {
-                this.fileInput.addEventListener('change', (e) => this.handleDocumentUpload(e));
+                // File Input
+                this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e.target.files[0]));
+
+                // Chunk Size Slider
+                this.chunkSizeInput.addEventListener('input', (e) => {
+                    this.chunkSize = parseInt(e.target.value);
+                    this.chunkDisplay.textContent = this.chunkSize;
+                });
+
+                // Control Buttons
                 this.startReadingBtn.addEventListener('click', () => this.startReading());
                 this.stopReadingBtn.addEventListener('click', () => this.stopReading());
                 this.testVoiceBtn.addEventListener('click', () => this.testVoice());
-                this.chunkSizeRange.addEventListener('input', (e) => this.updateChunkSize(e.target.value));
-                this.playPauseBtn.addEventListener('click', () => this.togglePlayPause());
+                this.playPauseBtn.addEventListener('click', () => this.togglePlayback());
+                this.skipAheadBtn.addEventListener('click', () => this.skipChunk(1));
+                this.skipBackBtn.addEventListener('click', () => this.handleSkipBack());
+
+                // Audio Progress Bar
                 this.audioProgress.addEventListener('click', (e) => this.seekAudio(e));
-
-                this.skipBackBtn.addEventListener('click', () => this.skipBack());
-                this.skipAheadBtn.addEventListener('click', () => this.skipToNextChunk());
-            }
-            
-            /**
-             * NEW: Updates the UI to reflect the current playbackSpeed.
-             */
-            updateSpeedUI() {
-                if (this.speedControls) {
-                    this.speedControls.querySelectorAll('.speed-btn').forEach(btn => {
-                        btn.classList.remove('active');
-                        // Use toFixed(2) for floating point comparison accuracy
-                        if (parseFloat(btn.textContent).toFixed(2) === this.playbackSpeed.toFixed(2)) {
-                            btn.classList.add('active');
-                        }
-                    });
-                }
-            }
-
-            /**
-             * Implements the skip ahead logic: jump to the next audio chunk.
-             */
-            skipToNextChunk() {
-                if (!this.currentChunks.length) return;
-
-                // Stop current audio
-                if (this.currentAudio) {
-                    this.currentAudio.pause();
-                    this.currentAudio = null;
-                }
                 
-                // Move to the next chunk and read it
-                this.currentChunkIndex++;
-                if (this.currentChunkIndex < this.currentChunks.length) {
-                    if (!this.isPlaying) {
-                        this.isPlaying = true; // Auto-start playing if document is loaded
-                        this.updateButtonStates();
-                    }
-                    this.readChunk(this.currentChunkIndex);
-                } else {
-                    this.stopReading();
-                    const message = this.language === 'en' 
-                        ? 'Reading completed!'
-                        : 'Leitura concluída!';
-                    this.showStatus(message, 'success');
-                }
+                // Highlight on scroll
+                this.documentContent.addEventListener('scroll', () => this.syncHighlightToScroll());
             }
 
-            /**
-             * Implements the skip back logic: 
-             * 1. Single click: Reset current chunk to 0.
-             * 2. Double click (within 2s): Jump to previous chunk.
-             */
-            skipBack() {
-                if (!this.currentChunks.length) return;
+            handleSkipBack() {
+                const now = Date.now();
+                const doubleClickThreshold = 400; // milliseconds
 
-                if (this.currentAudio) {
-                    const now = Date.now();
-                    const timeSinceLastClick = now - this.lastSkipBackClickTime;
-                    this.lastSkipBackClickTime = now;
-                    
-                    if (timeSinceLastClick < 2000) {
-                        // SECOND CLICK (within 2 seconds) -> Jump to previous chunk
-                        if (this.currentChunkIndex > 0) {
-                            // Stop current audio
-                            this.currentAudio.pause();
-                            this.currentAudio = null;
-                            
-                            // Move to previous chunk
-                            this.currentChunkIndex--;
-                            this.readChunk(this.currentChunkIndex);
-                        } else {
-                            // Already at the first chunk, just reset to 0
-                            this.currentAudio.currentTime = 0;
-                        }
-
-                    } else {
-                        // FIRST CLICK (or click after 2 seconds) -> Jump to start of current audio
+                if (now - this.lastSkipBackClickTime < doubleClickThreshold) {
+                    // Double click: Skip to previous chunk
+                    this.skipChunk(-1);
+                    this.lastSkipBackClickTime = 0; // Reset for next sequence
+                } else {
+                    // Single click: Skip to start of current chunk
+                    if (this.currentAudio) {
                         this.currentAudio.currentTime = 0;
                     }
-                    this.updateTimeDisplay();
-                } else if (this.currentChunkIndex > 0) {
-                    // If paused/stopped, just jump back a chunk
-                    this.currentChunkIndex--;
-                    this.readChunk(this.currentChunkIndex);
                 }
+                this.lastSkipBackClickTime = now;
+            }
+            
+            updateSpeedUI() {
+                // Remove active class from all speed buttons
+                this.speedControls.querySelectorAll('.speed-btn').forEach(btn => btn.classList.remove('active'));
+                
+                // Find and set active class on the button matching the current speed
+                this.speedControls.querySelectorAll('.speed-btn').forEach(btn => {
+                    // Extract speed from the onclick attribute string
+                    const match = btn.getAttribute('onclick').match(/setSpeed\('.+', (\d\.?\d*)?\)/);
+                    if (match && parseFloat(match[1]) === this.playbackSpeed) {
+                        btn.classList.add('active');
+                    }
+                });
             }
 
             populateVoices() {
-                this.voiceGrid.innerHTML = '';
-                
-                this.availableVoices.forEach((voice, index) => {
-                    const voiceElement = document.createElement('div');
-                    voiceElement.className = 'voice-option';
-                    if (voice.name === this.selectedVoice) {
-                        voiceElement.classList.add('selected');
+                this.voiceGrid.innerHTML = ''; // Clear existing voices
+
+                this.availableVoices.forEach(voice => {
+                    const voiceOption = document.createElement('div');
+                    voiceOption.className = 'voice-option';
+                    voiceOption.id = `voice-${voice.apiName}`;
+                    voiceOption.dataset.apiName = voice.apiName;
+
+                    if (voice.apiName === this.selectedVoice) {
+                        voiceOption.classList.add('selected');
+                        this.testVoiceBtn.disabled = false;
                     }
-                    
-                    voiceElement.innerHTML = `
+
+                    voiceOption.innerHTML = `
                         <div class="voice-name">${voice.name}</div>
                         <div class="voice-details">
                             <span class="voice-flag">${voice.flag}</span>
-                            <span>${voice.gender} • ${voice.language}</span>
+                            <span>${voice.language} - ${voice.gender}</span>
                         </div>
                     `;
-                    
-                    voiceElement.addEventListener('click', () => {
-                        this.voiceGrid.querySelectorAll('.voice-option').forEach(el => el.classList.remove('selected'));
-                        voiceElement.classList.add('selected');
-                        this.selectedVoice = voice.name;
-                        this.updateButtonStates();
-                    });
-                    
-                    this.voiceGrid.appendChild(voiceElement);
-                });
 
-                this.testVoiceBtn.disabled = false;
+                    voiceOption.addEventListener('click', () => this.selectVoice(voice.apiName));
+                    this.voiceGrid.appendChild(voiceOption);
+                });
             }
 
-            async handleDocumentUpload(event) {
-                const file = event.target.files[0];
+            selectVoice(apiName) {
+                this.selectedVoice = apiName;
+                this.voiceGrid.querySelectorAll('.voice-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                document.getElementById(`voice-${apiName}`).classList.add('selected');
+                this.testVoiceBtn.disabled = false;
+            }
+            
+            async handleFileSelect(file) {
                 if (!file) return;
-                
-                this.showStatus(this.language === 'en' ? 'Processing document...' : 'Processando documento...', 'info');
-                
-                // Clear previous state and cache on new file upload
+
+                this.showStatus(`Loading file: ${file.name}...`, 'info');
+                this.documentContent.innerHTML = '';
+                this.currentDocument = null;
+                this.currentChunks = [];
+                this.currentChunkIndex = 0;
+                this.clearCache(false);
                 this.stopReading();
-                this.clearCache();
+                this.audioPlayer.style.display = 'none';
+                this.startReadingBtn.disabled = true;
 
+                let content = '';
                 try {
-                    let text = '';
-                    const fileExtension = file.name.split('.').pop().toLowerCase();
+                    const arrayBuffer = await file.arrayBuffer();
 
-                    switch (fileExtension) {
-                        case 'pdf':
-                            text = await this.extractTextFromPDF(file);
-                            break;
-                        case 'docx':
-                            text = await this.extractTextFromDOCX(file);
-                            break;
-                        case 'txt':
-                            text = await this.extractTextFromTXT(file);
-                            break;
-                        default:
-                            throw new Error(`Unsupported file format: ${fileExtension}`);
+                    if (file.name.toLowerCase().endsWith('.pdf')) {
+                        content = await this.readPdf(arrayBuffer);
+                    } else if (file.name.toLowerCase().endsWith('.docx')) {
+                        content = await this.readDocx(arrayBuffer);
+                    } else if (file.name.toLowerCase().endsWith('.txt')) {
+                        content = new TextDecoder().decode(arrayBuffer);
+                    } else {
+                        throw new Error("Unsupported file type.");
                     }
-
-                    // Basic text normalization to reduce chunking errors
-                    text = text.replace(/(\r\n|\n|\r)/gm, ' ').replace(/\s{2,}/g, ' ').trim();
-
-                    if (!text) {
-                        throw new Error('No text content found in the document');
-                    }
-
-                    this.currentDocument = text;
-                    this.currentChunks = this.splitIntoChunks(text);
-                    this.displayDocument();
-                    this.updateButtonStates();
                     
-                    const message = this.language === 'en' 
-                        ? `Document loaded successfully! (${this.currentChunks.length} chunks)`
-                        : `Documento carregado com sucesso! (${this.currentChunks.length} blocos)`;
-                    this.showStatus(message, 'success');
-
+                    this.currentDocument = content;
+                    this.currentChunks = this.chunkText(content, this.chunkSize);
+                    this.renderDocumentContent(this.currentChunks);
+                    this.startReadingBtn.disabled = false;
+                    this.showStatus(`Successfully loaded "${file.name}" with ${this.currentChunks.length} chunks.`, 'success');
                 } catch (error) {
-                    console.error('Error processing document:', error);
-                    const message = this.language === 'en' 
-                        ? `Error: ${error.message}`
-                        : `Erro: ${error.message}`;
-                    this.showStatus(message, 'error');
+                    console.error('File reading error:', error);
+                    this.showStatus(`Error reading file: ${error.message}`, 'error');
                 }
             }
 
-            async extractTextFromPDF(file) {
-                const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            async readPdf(arrayBuffer) {
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
                 let text = '';
-
                 for (let i = 1; i <= pdf.numPages; i++) {
                     const page = await pdf.getPage(i);
                     const textContent = await page.getTextContent();
-                    const pageText = textContent.items.map(item => item.str).join(' ');
-                    text += pageText + '\n';
+                    text += textContent.items.map(item => item.str).join(' ') + '\n\n';
                 }
-
-                return text;
+                return text.replace(/\s+/g, ' ').trim();
             }
 
-            async extractTextFromDOCX(file) {
-                const arrayBuffer = await file.arrayBuffer();
-                const result = await mammoth.extractRawText({ arrayBuffer });
-                return result.value;
+            async readDocx(arrayBuffer) {
+                const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+                return result.value.replace(/\s+/g, ' ').trim();
             }
 
-            async extractTextFromTXT(file) {
-                return await file.text();
-            }
-
-            splitIntoChunks(text) {
-                const words = text.split(/\s+/).filter(word => word.trim().length > 0);
+            chunkText(text, wordsPerChunk) {
+                const sentences = text.match(/[^.!?]+[.!?]|\S+/g) || [];
                 const chunks = [];
-                
-                for (let i = 0; i < words.length; i += this.chunkSize) {
-                    const chunk = words.slice(i, i + this.chunkSize).join(' ');
-                    chunks.push({
-                        text: chunk,
-                        startIndex: i,
-                        endIndex: Math.min(i + this.chunkSize - 1, words.length - 1)
-                    });
+                let currentChunk = [];
+
+                for (const sentence of sentences) {
+                    const words = sentence.trim().split(/\s+/);
+                    if (currentChunk.length + words.length <= wordsPerChunk) {
+                        currentChunk.push(sentence.trim());
+                    } else {
+                        if (currentChunk.length > 0) {
+                            chunks.push(currentChunk.join(' '));
+                        }
+                        currentChunk = [sentence.trim()];
+                    }
                 }
-                
-                return chunks;
+
+                if (currentChunk.length > 0) {
+                    chunks.push(currentChunk.join(' '));
+                }
+
+                // Fallback for huge blocks of text without punctuation
+                if (chunks.length === 0 && text.length > 0) {
+                    const words = text.split(/\s+/);
+                    for (let i = 0; i < words.length; i += wordsPerChunk) {
+                        chunks.push(words.slice(i, i + wordsPerChunk).join(' '));
+                    }
+                }
+
+                return chunks.filter(c => c.length > 0);
             }
 
-            displayDocument() {
-                const words = this.currentDocument.split(/\s+/);
-                let html = '';
-                
-                words.forEach((word, index) => {
-                    html += `<span id="word-${this.language}-${index}" class="word">${word} </span>`;
+            renderDocumentContent(chunks) {
+                this.documentContent.innerHTML = '';
+                chunks.forEach((chunk, index) => {
+                    const span = document.createElement('span');
+                    span.id = `chunk-${this.language}-${index}`;
+                    span.textContent = chunk + ' ';
+                    this.documentContent.appendChild(span);
                 });
-                
-                this.documentContent.innerHTML = html;
             }
 
-            updateChunkSize(value) {
-                this.chunkSize = parseInt(value);
-                this.chunkDisplay.textContent = this.chunkSize;
+            highlightChunk(index) {
+                this.documentContent.querySelectorAll('span').forEach(span => {
+                    span.classList.remove('chunk-highlight');
+                });
+
+                const currentSpan = document.getElementById(`chunk-${this.language}-${index}`);
+                if (currentSpan) {
+                    currentSpan.classList.add('chunk-highlight');
+                    this.scrollToChunk(currentSpan);
+                }
+            }
+            
+            scrollToChunk(element) {
+                const container = this.documentContent;
+                const containerRect = container.getBoundingClientRect();
+                const elementRect = element.getBoundingClientRect();
+            
+                // Calculate position to center the element, accounting for container scroll
+                const scrollPosition = element.offsetTop - container.offsetTop - (containerRect.height / 2) + (elementRect.height / 2);
+            
+                // Use smooth scroll
+                container.scrollTo({
+                    top: scrollPosition,
+                    behavior: 'smooth'
+                });
+            }
+
+            // Sync the highlight to the chunk currently visible on screen center
+            syncHighlightToScroll() {
+                if (this.isPlaying) return; // Don't interfere with automatic highlighting
+
+                const container = this.documentContent;
+                const containerHeight = container.clientHeight;
+                const scrollCenter = container.scrollTop + containerHeight / 2;
                 
-                if (this.currentDocument) {
-                    this.currentChunks = this.splitIntoChunks(this.currentDocument);
-                    this.displayDocument();
-                    this.clearCache(); // Invalidate cache since chunking changed
+                for (let i = 0; i < this.currentChunks.length; i++) {
+                    const chunkElement = document.getElementById(`chunk-${this.language}-${i}`);
+                    if (!chunkElement) continue;
+
+                    const elementTop = chunkElement.offsetTop;
+                    const elementBottom = elementTop + chunkElement.offsetHeight;
+
+                    // Check if the center of the scroll container is within the bounds of the chunk element
+                    if (scrollCenter >= elementTop && scrollCenter < elementBottom) {
+                        this.highlightChunk(i);
+                        this.currentChunkIndex = i;
+                        break;
+                    }
                 }
             }
 
             async startReading() {
                 if (!this.currentChunks.length) {
-                    const message = this.language === 'en' 
-                        ? 'Please upload a document first!'
-                        : 'Por favor, carregue um documento primeiro!';
-                    this.showStatus(message, 'error');
+                    this.showStatus('Please upload a document first.', 'warning');
                     return;
                 }
 
                 this.isPlaying = true;
                 this.currentChunkIndex = 0;
-                this.updateButtonStates();
+                this.audioPlayer.style.display = 'block';
+                this.stopReadingBtn.disabled = false;
+                this.startReadingBtn.disabled = true;
+                this.updatePlayPauseIcon(true);
                 
-                const message = this.language === 'en' 
-                    ? 'Preparing audio playlist...'
-                    : 'Preparando playlist de áudio...';
-                this.showStatus(message, 'info');
-
-                // Start preloading audio chunks in background
-                this.startPreloadingAudio();
-
-                await this.readChunk(this.currentChunkIndex);
-            }
-
-            /**
-             * FIX: Start preloading from the current chunk index to ensure the most relevant chunks are cached.
-             */
-            async startPreloadingAudio() {
-                if (this.isPreloading || !this.currentChunks.length) return;
+                // Start preloading immediately
+                this.preloadAudio();
                 
-                this.isPreloading = true;
-                this.preloadedCount = 0;
-
-                const totalChunks = this.currentChunks.length;
-                const startChunk = this.currentChunkIndex;
-                const totalChunksToCache = Math.min(totalChunks, this.currentChunkIndex + this.maxPreloadChunks);
-
-                this.cacheStatus.style.display = 'block';
-                this.updateCacheStatus(startChunk, totalChunksToCache); // Initial status
-                
-                const message = this.language === 'en' 
-                    ? `Caching audio for offline reading...`
-                    : `Armazenando áudio para leitura offline...`;
-                this.showStatus(message, 'info');
-
-                // Preload chunks starting from current position
-                for (let i = startChunk; i < totalChunksToCache; i++) {
-                    try {
-                        const cacheKey = `${this.selectedVoice}-${i}`;
-                        
-                        if (!this.audioBlobs.has(cacheKey)) {
-                            const chunk = this.currentChunks[i];
-                            const audioUrl = await this.generateAudioFromProxy(chunk.text, this.selectedVoice);
-                            const audioBlob = await this.downloadAudio(audioUrl);
-                            this.audioBlobs.set(cacheKey, audioBlob);
-                            
-                            this.updateCacheStatus(startChunk, totalChunksToCache);
-                            
-                            // Small delay to prevent overwhelming the server
-                            await new Promise(resolve => setTimeout(resolve, 200));
-                        } else {
-                            this.updateCacheStatus(startChunk, totalChunksToCache);
-                        }
-                    } catch (error) {
-                        console.warn(`Failed to preload chunk ${i}:`, error);
-                        // Continue preloading other chunks even if one fails
-                    }
-                }
-                
-                const finalMessage = this.language === 'en' 
-                    ? `Audio playlist ready! Cached ${this.audioBlobs.size} chunks for offline reading`
-                    : `Playlist de áudio pronta! ${this.audioBlobs.size} blocos armazenados para leitura offline`;
-                this.showStatus(finalMessage, 'success');
-                
-                this.isPreloading = false;
-            }
-
-            updateCacheStatus(startIndex = 0, totalChunks = this.currentChunks.length) {
-                if (this.cacheProgress && this.cacheBarFill) {
-                    // Recalculate preloaded count based on the relevant cache window
-                    let cachedInWindow = 0;
-                    const windowEnd = Math.min(this.currentChunks.length, startIndex + this.maxPreloadChunks);
-                    const totalInWindow = windowEnd - startIndex;
-
-                    for(let i = startIndex; i < windowEnd; i++) {
-                        const cacheKey = `${this.selectedVoice}-${i}`;
-                        if (this.audioBlobs.has(cacheKey)) {
-                            cachedInWindow++;
-                        }
-                    }
-
-                    const progressText = this.language === 'en' 
-                        ? `${cachedInWindow}/${totalInWindow} chunks cached`
-                        : `${cachedInWindow}/${totalInWindow} blocos armazenados`;
-                    
-                    this.cacheProgress.textContent = progressText;
-                    const percentage = totalInWindow > 0 ? (cachedInWindow / totalInWindow) * 100 : 0;
-                    this.cacheBarFill.style.width = `${percentage}%`;
-
-                    // We now use this.audioBlobs.size for the absolute total cached, which is more accurate.
-                    this.preloadedCount = this.audioBlobs.size;
-                }
-            }
-
-            async testVoice() {
-                const testText = this.language === 'en' 
-                    ? "Hello! This is a test of the selected voice. How does it sound?"
-                    : "Olá! Este é um teste da voz selecionada em português. Como soa para você?";
-                    
-                const message = this.language === 'en' 
-                    ? 'Testing voice...'
-                    : 'Testando voz...';
-                this.showStatus(message, 'info');
-                
-                try {
-                    // First check if server is reachable
-                    await this.checkServerConnection();
-                    
-                    const audioUrl = await this.generateAudioFromProxy(testText, this.selectedVoice);
-                    const audioBlob = await this.downloadAudio(audioUrl);
-                    
-                    // Show audio player for test
-                    this.audioPlayer.style.display = 'block';
-                    
-                    // Temporarily store original isPlaying state
-                    const wasPlaying = this.isPlaying;
-                    this.isPlaying = true;
-                    this.updateButtonStates();
-
-                    await this.playAudioBlob(audioBlob);
-                    
-                    // Restore original state
-                    this.isPlaying = wasPlaying;
-                    this.updateButtonStates();
-                    
-                    const successMessage = this.language === 'en' 
-                        ? 'Voice test completed successfully!'
-                        : 'Teste de voz concluído com sucesso!';
-                    this.showStatus(successMessage, 'success');
-                } catch (error) {
-                    console.error('Voice test error:', error);
-                    
-                    // If the current voice failed, try to suggest an alternative
-                    if (error.message.includes('not supported') || error.message.includes('TTSMP3 API failed')) {
-                        await this.handleVoiceFailure(error);
-                    } else {
-                        let errorMessage = this.language === 'en' 
-                            ? `Voice test failed: ${error.message}`
-                            : `Teste de voz falhou: ${error.message}`;
-                        
-                        if (error.message.includes('Cannot connect to server')) {
-                            errorMessage = this.language === 'en' 
-                                ? 'Backend server not running! Please start your Node.js server with: node server.js'
-                                : 'Servidor backend não está rodando! Por favor, inicie seu servidor Node.js com: node server.js';
-                        }
-                        
-                        this.showStatus(errorMessage, 'error');
-                    }
-                }
-            }
-
-            async handleVoiceFailure(error) {
-                const fallbackVoices = this.availableVoices.map(v => v.name);
-                
-                // Find a working fallback voice
-                for (const voiceName of fallbackVoices) {
-                    if (voiceName === this.selectedVoice) continue; // Skip the failed voice
-                    
-                    try {
-                        const testText = this.language === 'en' ? "Testing fallback voice" : "Testando voz alternativa";
-                        // A simple call to generate audio is enough to test if the voice works
-                        await this.generateAudioFromProxy(testText, voiceName);
-                        
-                        // If successful, switch to this voice
-                        this.selectedVoice = voiceName;
-                        this.updateVoiceSelection();
-                        
-                        const message = this.language === 'en' 
-                            ? `Original voice failed. Switched to "${voiceName}" which is working properly.`
-                            : `Voz original falhou. Alterado para "${voiceName}" que está funcionando corretamente.`;
-                        this.showStatus(message, 'info');
-                        
-                        // Clear cache since voice changed
-                        this.clearCache();
-                        
-                        return;
-                    } catch (fallbackError) {
-                        console.warn(`Fallback voice ${voiceName} also failed:`, fallbackError);
-                        continue;
-                    }
-                }
-                
-                // If no fallback worked
-                const message = this.language === 'en' 
-                    ? `Voice "${this.selectedVoice}" is not available. Please try a different voice or check your server configuration.`
-                    : `Voz "${this.selectedVoice}" não está disponível. Tente uma voz diferente ou verifique a configuração do servidor.`;
-                this.showStatus(message, 'error');
-            }
-
-            updateVoiceSelection() {
-                // Update the UI to reflect the new voice selection
-                this.voiceGrid.querySelectorAll('.voice-option').forEach(el => el.classList.remove('selected'));
-                
-                const selectedVoiceElement = Array.from(this.voiceGrid.querySelectorAll('.voice-option')).find(el => {
-                    return el.querySelector('.voice-name').textContent === this.selectedVoice;
-                });
-                
-                if (selectedVoiceElement) {
-                    selectedVoiceElement.classList.add('selected');
-                }
-            }
-
-            async checkServerConnection() {
-                try {
-                    const response = await fetch('https://pdf-reader-back.onrender.com/api/health', {
-                        method: 'GET',
-                        timeout: 5000
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Server is not responding properly');
-                    }
-                } catch (error) {
-                    throw new Error('Cannot connect to server. Please make sure your backend server is running on https://pdf-reader-back.onrender.com');
-                }
-            }
-
-            async readChunk(chunkIndex) {
-                if (chunkIndex >= this.currentChunks.length || !this.isPlaying) {
-                    this.stopReading();
-                    const message = this.language === 'en' 
-                        ? 'Reading completed!'
-                        : 'Leitura concluída!';
-                    this.showStatus(message, 'success');
-                    return;
-                }
-
-                this.currentChunkIndex = chunkIndex; // Ensure index is correct after skipping
-                const chunk = this.currentChunks[chunkIndex];
-                this.highlightChunk(chunkIndex);
-
-                try {
-                    // Check if audio is already cached
-                    const cacheKey = `${this.selectedVoice}-${chunkIndex}`;
-                    let audioBlob = this.audioBlobs.get(cacheKey);
-                    
-                    if (!audioBlob) {
-                        // Generate and download audio (fallback for non-preloaded chunks)
-                        const loadingMessage = this.language === 'en' 
-                            ? 'Loading audio...'
-                            : 'Carregando áudio...';
-                        this.showStatus(loadingMessage, 'info');
-                        
-                        const audioUrl = await this.generateAudioFromProxy(chunk.text, this.selectedVoice);
-                        audioBlob = await this.downloadAudio(audioUrl);
-                        this.audioBlobs.set(cacheKey, audioBlob);
-
-                        // Update cache status after a successful load during reading
-                        this.updateCacheStatus(this.currentChunkIndex);
-                    }
-
-                    if (this.isPlaying) {
-                        // FIX: This line ensures the currently set global speed is applied to the new audio object
-                        await this.playAudioBlob(audioBlob);
-                        
-                        if (this.isPlaying) {
-                            this.currentChunkIndex++;
-                            
-                            // Start preloading the next chunks after a delay
-                            setTimeout(() => this.startPreloadingAudio(), 50); 
-                            
-                            // Proceed to the next chunk
-                            setTimeout(() => this.readChunk(this.currentChunkIndex), 300);
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error reading chunk:', error);
-                    const message = this.language === 'en' 
-                        ? 'Error loading audio. Continuing to next chunk...'
-                        : 'Erro ao carregar áudio. Continuando para o próximo bloco...';
-                    this.showStatus(message, 'error');
-                    this.currentChunkIndex++;
-                    setTimeout(() => this.readChunk(this.currentChunkIndex), 1000);
-                }
-            }
-
-            async generateAudioFromProxy(text, voiceName) {
-                const apiUrl = 'https://pdf-reader-back.onrender.com/api/tts';
-                
-                // Get the selected voice details for language code
-                const selectedVoiceData = this.availableVoices.find(v => v.name === voiceName);
-                const languageCode = selectedVoiceData ? selectedVoiceData.langCode : (this.language === 'en' ? 'en-US' : 'pt-BR');
-                const apiVoiceName = selectedVoiceData ? selectedVoiceData.apiName : voiceName;
-                
-                try {
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ 
-                            text, 
-                            voiceName: apiVoiceName, // Use the API-compatible voice name
-                            languageCode,
-                            originalVoiceName: voiceName // For debugging purposes
-                        }),
-                    });
-                    
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({}));
-                        console.error('TTS API Error:', errorData);
-                        
-                        // Provide specific error messages for common issues
-                        if (errorData.details && errorData.details.includes('TTSMP3 API failed')) {
-                            throw new Error(`Voice "${voiceName}" is not supported by the TTS service. Please try a different voice.`);
-                        }
-                        
-                        throw new Error(`TTS service error (${response.status}): ${errorData.error || 'Unknown error'}`);
-                    }
-                    
-                    const result = await response.json();
-                    
-                    if (result.audioUrl) {
-                        return result.audioUrl;
-                    } else {
-                        throw new Error(`No audio URL returned for voice "${voiceName}". This voice may not be available.`);
-                    }
-                } catch (error) {
-                    console.error('TTS Error for voice:', voiceName, error);
-                    
-                    // If it's a network error, provide helpful message
-                    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                        throw new Error('Cannot connect to TTS server. Please ensure your backend server is running.');
-                    }
-                    
-                    throw error;
-                }
-            }
-
-            async downloadAudio(audioUrl) {
-                try {
-                    // Try direct fetch first
-                    const response = await fetch(audioUrl, {
-                        mode: 'cors',
-                        method: 'GET'
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`Failed to download audio: ${response.status}`);
-                    }
-                    return await response.blob();
-                } catch (error) {
-                    console.warn('Direct fetch failed, trying proxy download:', error);
-                    
-                    // Fallback: Use proxy to download audio
-                    try {
-                        const proxyResponse = await fetch('https://pdf-reader-back.onrender.com/api/download-audio', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({ audioUrl }),
-                        });
-                        
-                        if (!proxyResponse.ok) {
-                            throw new Error(`Proxy download failed: ${proxyResponse.status}`);
-                        }
-                        
-                        return await proxyResponse.blob();
-                    } catch (proxyError) {
-                        console.error('Proxy download also failed:', proxyError);
-                        throw new Error('Failed to download audio through both direct and proxy methods');
-                    }
-                }
-            }
-
-            async playAudioBlob(audioBlob) {
-                return new Promise((resolve, reject) => {
-                    if (this.currentAudio) {
-                        this.currentAudio.pause();
-                        this.currentAudio = null;
-                    }
-
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    this.currentAudio = new Audio(audioUrl);
-                    
-                    // Apply the current playback speed immediately
-                    this.currentAudio.playbackRate = this.playbackSpeed; 
-
-                    // Show audio player
-                    this.audioPlayer.style.display = 'block';
-                    
-                    // Show pause icon and hide play icon
-                    this.playIcon.style.display = 'none';
-                    this.pauseIcon.style.display = 'block';
-
-                    // Update progress during playback
-                    this.currentAudio.ontimeupdate = () => {
-                        if (this.currentAudio) {
-                            const progress = (this.currentAudio.currentTime / this.currentAudio.duration) * 100;
-                            this.audioProgressFill.style.width = `${progress}%`;
-                            this.updateTimeDisplay();
-                        }
-                    };
-
-                    this.currentAudio.onended = () => {
-                        URL.revokeObjectURL(audioUrl);
-                        // Show play icon and hide pause icon
-                        this.playIcon.style.display = 'block';
-                        this.pauseIcon.style.display = 'none';
-                        this.audioProgressFill.style.width = '0%';
-                        resolve();
-                    };
-
-                    this.currentAudio.onerror = (error) => {
-                        URL.revokeObjectURL(audioUrl);
-                        console.error('Audio playback error:', error);
-                        reject(error);
-                    };
-
-                    this.currentAudio.oncanplaythrough = () => {
-                        // Ensure speed is applied right before playing
-                        this.currentAudio.playbackRate = this.playbackSpeed;
-                        this.currentAudio.play().catch(reject);
-                    };
-
-                    this.currentAudio.onloadedmetadata = () => {
-                        // Apply speed as soon as metadata is loaded
-                        this.currentAudio.playbackRate = this.playbackSpeed;
-                    };
-
-                    this.currentAudio.load();
-                });
-            }
-
-            togglePlayPause() {
-                if (this.currentAudio) {
-                    if (this.currentAudio.paused) {
-                        this.currentAudio.play();
-                        // Show pause icon
-                        this.playIcon.style.display = 'none';
-                        this.pauseIcon.style.display = 'block';
-                    } else {
-                        this.currentAudio.pause();
-                        // Show play icon
-                        this.playIcon.style.display = 'block';
-                        this.pauseIcon.style.display = 'none';
-                    }
-                } else if (this.currentChunks.length > 0 && !this.isPlaying) {
-                    // If no audio is playing but we have a document, start reading
-                    this.startReading();
-                }
-            }
-
-            seekAudio(event) {
-                if (this.currentAudio) {
-                    const rect = this.audioProgress.getBoundingClientRect();
-                    const clickX = event.clientX - rect.left;
-                    const seekTime = (clickX / rect.width) * this.currentAudio.duration;
-                    this.currentAudio.currentTime = seekTime;
-                }
-            }
-
-            updateTimeDisplay() {
-                if (this.currentAudio) {
-                    const current = this.formatTime(this.currentAudio.currentTime);
-                    const total = this.formatTime(this.currentAudio.duration);
-                    this.timeDisplay.textContent = `${current} / ${total}`;
-                }
-            }
-
-            formatTime(seconds) {
-                if (isNaN(seconds)) return '0:00';
-                const mins = Math.floor(seconds / 60);
-                const secs = Math.floor(seconds % 60);
-                return `${mins}:${secs.toString().padStart(2, '0')}`;
+                // Start playing
+                await this.readChunksSequentially();
             }
 
             stopReading() {
                 this.isPlaying = false;
-                
                 if (this.currentAudio) {
                     this.currentAudio.pause();
                     this.currentAudio = null;
                 }
-                
-                this.audioPlayer.style.display = 'none';
-                this.clearHighlights();
-                this.updateButtonStates();
-                
-                // Keep cache status visible to show cached content
-                if (this.audioBlobs.size > 0) {
-                    const cacheSize = this.getCacheSize();
-                    const message = this.language === 'en' 
-                        ? `Reading stopped. ${this.audioBlobs.size} chunks cached (${cacheSize}) ready for offline reading.`
-                        : `Leitura interrompida. ${this.audioBlobs.size} blocos armazenados (${cacheSize}) prontos para leitura offline.`;
-                    this.showStatus(message, 'info');
+                this.updatePlayPauseIcon(false);
+                this.stopReadingBtn.disabled = true;
+                if (this.currentChunks.length > 0) {
+                    this.startReadingBtn.disabled = false;
+                }
+                this.cacheStatus.style.display = 'none';
+                this.updateTimeDisplay(0, 0);
+            }
+
+            togglePlayback() {
+                if (!this.currentChunks.length) return;
+
+                if (this.isPlaying) {
+                    this.isPlaying = false;
+                    if (this.currentAudio) this.currentAudio.pause();
+                    this.updatePlayPauseIcon(false);
                 } else {
-                    const message = this.language === 'en' 
-                        ? 'Reading stopped'
-                        : 'Leitura interrompida';
-                    this.showStatus(message, 'info');
+                    this.isPlaying = true;
+                    this.audioPlayer.style.display = 'block';
+                    this.stopReadingBtn.disabled = false;
+                    this.startReadingBtn.disabled = true;
+                    this.updatePlayPauseIcon(true);
+
+                    if (this.currentAudio && this.currentAudio.paused) {
+                        // Resume current audio
+                        this.currentAudio.play().catch(e => {
+                            console.error("Resume play failed:", e);
+                            this.readChunksSequentially(); // Fallback to starting sequence
+                        });
+                    } else {
+                        // Start reading from the current index
+                        this.readChunksSequentially();
+                    }
                 }
             }
 
-            getCacheSize() {
-                let totalSize = 0;
-                this.audioBlobs.forEach((blob) => {
-                    totalSize += blob.size;
-                });
-                return this.formatFileSize(totalSize);
-            }
-
-            formatFileSize(bytes) {
-                if (bytes === 0) return '0 Bytes';
-                const k = 1024;
-                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-            }
-
-            clearCache() {
-                this.audioBlobs.clear();
-                this.preloadedCount = 0;
-                this.updateCacheStatus();
-                if (this.cacheStatus) {
-                    this.cacheStatus.style.display = 'none';
+            skipChunk(direction) {
+                if (!this.currentChunks.length) return;
+                
+                this.currentChunkIndex += direction;
+                
+                // Bound the index
+                if (this.currentChunkIndex < 0) this.currentChunkIndex = 0;
+                if (this.currentChunkIndex >= this.currentChunks.length) {
+                    this.currentChunkIndex = this.currentChunks.length - 1;
+                    this.stopReading();
+                    this.showStatus('Finished reading the document.', 'success');
+                    return;
                 }
-                
-                const message = this.language === 'en' 
-                    ? 'Audio cache cleared'
-                    : 'Cache de áudio limpo';
-                this.showStatus(message, 'info');
+
+                // Stop current audio and immediately start reading from the new index
+                if (this.currentAudio) {
+                    this.currentAudio.pause();
+                    this.currentAudio = null;
+                }
+                this.readChunksSequentially();
             }
 
-            highlightChunk(chunkIndex) {
-                this.clearHighlights();
-                const chunk = this.currentChunks[chunkIndex];
-                
-                // Find the first and last word index
-                const firstWordIndex = chunk.startIndex;
-                const lastWordIndex = chunk.endIndex;
-
-                for (let i = firstWordIndex; i <= lastWordIndex; i++) {
-                    const wordElement = document.getElementById(`word-${this.language}-${i}`);
-                    if (wordElement) {
-                        wordElement.classList.add('chunk-highlight');
+            async readChunksSequentially() {
+                while (this.isPlaying && this.currentChunkIndex < this.currentChunks.length) {
+                    const chunk = this.currentChunks[this.currentChunkIndex];
+                    this.highlightChunk(this.currentChunkIndex);
+                    
+                    try {
+                        await this.playChunk(chunk, this.currentChunkIndex);
+                        
+                        if (this.isPlaying) {
+                            this.currentChunkIndex++;
+                        }
+                    } catch (error) {
+                        if (this.isPlaying) {
+                            console.error(`Error playing chunk ${this.currentChunkIndex}:`, error);
+                            this.showStatus(`Failed to play chunk ${this.currentChunkIndex+1}. Skipping...`, 'error');
+                            // Skip the chunk on error
+                            this.currentChunkIndex++; 
+                        }
                     }
                 }
 
-                // Scroll to the highlighted chunk
-                const firstWord = document.getElementById(`word-${this.language}-${firstWordIndex}`);
-                if (firstWord) {
-                    firstWord.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (this.currentChunkIndex >= this.currentChunks.length) {
+                    this.stopReading();
+                    this.showStatus('Finished reading the document.', 'success');
                 }
             }
 
-            clearHighlights() {
-                document.querySelectorAll('.chunk-highlight').forEach(el => {
-                    el.classList.remove('chunk-highlight');
+            async playChunk(text, index) {
+                if (!this.isPlaying) return;
+
+                let audioUrl;
+                let isCached = false;
+
+                // 1. Try to get from in-memory cache
+                if (this.audioBlobs.has(index)) {
+                    const blob = this.audioBlobs.get(index);
+                    audioUrl = URL.createObjectURL(blob);
+                    isCached = true;
+                } else {
+                    // 2. Fetch from TTS API via proxy
+                    this.showStatus(`Generating audio for chunk ${index + 1}/${this.currentChunks.length}...`, 'info');
+                    const ttsResponse = await this.getTtsUrl(text, this.selectedVoice);
+                    audioUrl = ttsResponse.audioUrl;
+                    
+                    if (ttsResponse.cached === 1) {
+                         isCached = true;
+                    }
+
+                    // 3. Download the audio file via proxy for CORS bypass and to create a Blob for in-memory caching
+                    const blob = await this.downloadAudioAsBlob(audioUrl);
+                    this.audioBlobs.set(index, blob);
+                    audioUrl = URL.createObjectURL(blob);
+                    
+                    this.preloadedCount++;
+                    this.updateCacheStatus();
+                }
+                
+                if (!isCached) {
+                    this.showStatus(`Playing chunk ${index + 1}/${this.currentChunks.length} (Generated by ${this.selectedVoice}).`, 'info');
+                } else {
+                    this.showStatus(`Playing chunk ${index + 1}/${this.currentChunks.length} (Cached).`, 'success');
+                }
+                
+                return new Promise((resolve, reject) => {
+                    this.currentAudio = new Audio(audioUrl);
+                    this.currentAudio.playbackRate = this.playbackSpeed; // Apply saved speed
+                    this.currentAudio.onerror = (e) => {
+                        console.error('Audio playback error:', e);
+                        reject(new Error('Audio playback failed.'));
+                    };
+
+                    this.currentAudio.onended = () => {
+                        URL.revokeObjectURL(audioUrl); // Clean up the Blob URL
+                        resolve();
+                    };
+
+                    this.currentAudio.ontimeupdate = () => {
+                        this.updateTimeDisplay(this.currentAudio.currentTime, this.currentAudio.duration);
+                    };
+
+                    // Start playing
+                    this.currentAudio.play().catch(e => {
+                        // This catch block handles "The play() request was interrupted by a call to pause()."
+                        // or "The play() failed because the user didn't interact with the document first."
+                        if (this.isPlaying) {
+                            // If we're still supposed to be playing, it's a real error or
+                            // an interruption that means we should resolve to move to the next chunk.
+                            console.warn("Audio play promise rejected, but continuing:", e);
+                            resolve(); 
+                        } else {
+                            // If we stopped playing, we should not resolve/reject the promise, just stop.
+                            // The outer loop's `this.isPlaying` check will handle loop termination.
+                        }
+                    });
+                    
+                    // Preload next chunks while playing
+                    this.preloadAudio(); 
                 });
             }
+            
+            async getTtsUrl(text, voiceName) {
+                // Ensure text is under a reasonable limit to prevent API abuse
+                if (text.length > 1000) {
+                    text = text.substring(0, 1000); 
+                    console.warn("TTS text truncated to 1000 characters.");
+                }
 
-            updateButtonStates() {
-                const hasDocument = this.currentDocument && this.currentChunks.length > 0;
+                // NOTE: Using the hardcoded URL from the user's original file, assuming it's the backend.
+                const backendUrl = 'https://pdf-reader-back.onrender.com/api/tts';
                 
-                this.startReadingBtn.disabled = !hasDocument || this.isPlaying;
-                this.stopReadingBtn.disabled = !this.isPlaying;
+                const response = await fetch(backendUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text, voiceName }),
+                });
+
+                if (!response.ok) {
+                    // THIS IS WHERE THE 500 ERROR IS CAUGHT
+                    throw new Error(`TTS API failed with status ${response.status}. Check backend logs.`);
+                }
+
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(`TTS API returned error: ${data.details}`);
+                }
+                return data;
+            }
+
+            async downloadAudioAsBlob(audioUrl) {
+                 // NOTE: Using the hardcoded URL from the user's original file, assuming it's the backend.
+                const backendUrl = 'https://pdf-reader-back.onrender.com/api/download-audio';
                 
-                // Update button text based on cache status
-                if (hasDocument && this.audioBlobs.size > 0 && !this.isPlaying) {
-                    const offlineText = this.language === 'en' 
-                        ? `Start Reading (${this.audioBlobs.size} cached)`
-                        : `Iniciar Leitura (${this.audioBlobs.size} armazenados)`;
-                    this.startReadingBtn.textContent = offlineText;
-                } else {
-                    const normalText = this.language === 'en' 
-                        ? 'Start Reading'
-                        : 'Iniciar Leitura';
-                    this.startReadingBtn.textContent = normalText;
+                const response = await fetch(backendUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ audioUrl }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Audio download proxy failed with status ${response.status}.`);
+                }
+
+                // Return the response body as a Blob
+                return await response.blob();
+            }
+
+            async preloadAudio() {
+                if (this.isPreloading || !this.currentChunks.length) return;
+
+                this.isPreloading = true;
+                this.cacheStatus.style.display = 'block';
+                this.updateCacheStatus();
+
+                for (let i = this.currentChunkIndex; i < this.currentChunks.length; i++) {
+                    if (this.audioBlobs.has(i) || i >= this.currentChunkIndex + this.maxPreloadChunks) {
+                        continue; // Already cached or reached preload limit
+                    }
+                    
+                    const chunk = this.currentChunks[i];
+                    try {
+                         this.showStatus(`Preloading chunk ${i + 1}/${this.currentChunks.length}...`, 'info');
+                         const ttsResponse = await this.getTtsUrl(chunk, this.selectedVoice);
+                         const blob = await this.downloadAudioAsBlob(ttsResponse.audioUrl);
+                         this.audioBlobs.set(i, blob);
+                         this.preloadedCount++;
+                         this.updateCacheStatus();
+                         
+                         // Stop preloading if user stopped playback
+                         if (!this.isPlaying) {
+                            break;
+                         }
+
+                    } catch (error) {
+                        console.error(`Preload failed for chunk ${i+1}:`, error.message);
+                        // Stop preloading on error to avoid rate limits
+                        break; 
+                    }
                 }
                 
-                // Update play/pause icon on main button
+                this.showStatus('Preloading complete or paused.', 'success');
+                this.isPreloading = false;
+            }
+            
+            clearCache(showSuccess = true) {
+                this.audioBlobs.forEach(blob => URL.revokeObjectURL(URL.createObjectURL(blob))); // Revoke old URLs
+                this.audioBlobs.clear();
+                this.preloadedCount = 0;
+                this.isPreloading = false;
+                this.updateCacheStatus();
+                this.cacheStatus.style.display = 'none';
+                if (showSuccess) {
+                    this.showStatus('Audio cache cleared successfully.', 'warning');
+                }
+            }
+            
+            updateCacheStatus() {
+                const total = this.currentChunks.length;
+                const cached = this.audioBlobs.size;
+                
+                this.cacheProgress.textContent = `${cached}/${total} chunks cached`;
+                
+                const percentage = total > 0 ? (cached / total) * 100 : 0;
+                this.cacheBarFill.style.width = `${percentage}%`;
+                
+                if (cached > 0) {
+                    this.cacheStatus.style.display = 'block';
+                } else {
+                    this.cacheStatus.style.display = 'none';
+                }
+            }
+
+            updateTimeDisplay(currentTime, duration) {
+                const formatTime = (seconds) => {
+                    const min = Math.floor(seconds / 60);
+                    const sec = Math.floor(seconds % 60);
+                    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+                };
+
+                const currentFormatted = formatTime(currentTime || 0);
+                const durationFormatted = formatTime(duration || 0);
+
+                this.timeDisplay.textContent = `${currentFormatted} / ${durationFormatted}`;
+                
+                if (this.currentAudio && this.currentAudio.duration) {
+                     const percent = (currentTime / duration) * 100;
+                     this.audioProgressFill.style.width = `${percent}%`;
+                }
+            }
+
+            seekAudio(e) {
+                if (!this.currentAudio) return;
+
+                const rect = this.audioProgress.getBoundingClientRect();
+                const offsetX = e.clientX - rect.left;
+                const percent = offsetX / rect.width;
+                const seekTime = this.currentAudio.duration * percent;
+
+                this.currentAudio.currentTime = seekTime;
+            }
+
+            async testVoice() {
+                const testText = this.language === 'en' ? 
+                    "This is a voice test for the selected English voice." : 
+                    "Este é um teste de voz para a voz portuguesa selecionada.";
+                
+                this.showStatus(`Testing voice: ${this.selectedVoice}...`, 'info');
+                this.testVoiceBtn.disabled = true;
+
+                try {
+                    // 1. Get TTS URL
+                    const ttsResponse = await this.getTtsUrl(testText, this.selectedVoice);
+                    
+                    // 2. Download audio via proxy
+                    const blob = await this.downloadAudioAsBlob(ttsResponse.audioUrl);
+                    const audioUrl = URL.createObjectURL(blob);
+
+                    // 3. Play the audio
+                    const testAudio = new Audio(audioUrl);
+                    testAudio.playbackRate = this.playbackSpeed;
+                    
+                    testAudio.oncanplaythrough = () => {
+                         testAudio.play().catch(e => {
+                            this.showStatus('Error playing test audio. User must interact with the document first.', 'error');
+                            this.testVoiceBtn.disabled = false;
+                        });
+                    };
+
+                    testAudio.onended = () => {
+                        URL.revokeObjectURL(audioUrl);
+                        this.showStatus('Voice test complete.', 'success');
+                        this.testVoiceBtn.disabled = false;
+                    };
+
+                } catch (error) {
+                    console.error('Voice test failed:', error);
+                    this.showStatus(`Voice test failed: ${error.message}`, 'error');
+                    this.testVoiceBtn.disabled = false;
+                }
+            }
+
+            updatePlayPauseIcon(playing) {
                 if (this.playIcon && this.pauseIcon) {
-                    if (this.isPlaying && this.currentAudio && !this.currentAudio.paused) {
+                    if (playing) {
                         this.playIcon.style.display = 'none';
                         this.pauseIcon.style.display = 'block';
                     } else {
