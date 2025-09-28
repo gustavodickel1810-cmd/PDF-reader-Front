@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 
 const app = express();
-const frontendPort = 8080;
+const frontendPort = 3000;
 
 require('./keepAlive');
 

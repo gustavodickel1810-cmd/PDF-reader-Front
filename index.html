@@ -760,7 +760,7 @@
                         </div>
                         <div class="time-display" id="timeDisplayEn">0:00 / 0:00</div>
                     </div>
-                    <div class="speed-controls">
+                    <div class="speed-controls" id="speedControlsEn">
                         <span style="color: var(--text-secondary); font-size: 0.75rem; font-weight: 600;">Speed:</span>
                         <button class="speed-btn" onclick="setSpeed('en', 0.75)">0.75x</button>
                         <button class="speed-btn active" onclick="setSpeed('en', 1.0)">1.0x</button>
@@ -866,7 +866,7 @@
                         </div>
                         <div class="time-display" id="timeDisplayPt">0:00 / 0:00</div>
                     </div>
-                    <div class="speed-controls">
+                    <div class="speed-controls" id="speedControlsPt">
                         <span style="color: var(--text-secondary); font-size: 0.75rem; font-weight: 600;">Velocidade:</span>
                         <button class="speed-btn" onclick="setSpeed('pt', 0.75)">0.75x</button>
                         <button class="speed-btn active" onclick="setSpeed('pt', 1.0)">1.0x</button>
@@ -966,38 +966,29 @@
             
             // Update current language
             if (window.documentReader) {
-                window.documentReader.currentLanguage = language === 'english' ? 'en' : 'pt';
+                const langCode = language === 'english' ? 'en' : 'pt';
+                window.documentReader.currentLanguage = langCode;
+                // Ensure UI is updated if user switches tabs
+                window.documentReader.readers[langCode].updateSpeedUI();
             }
         }
 
-        /**
-         * UPDATED: Applies speed to the current audio and sets it as the persistent
-         * speed for all subsequent audio chunks.
-         */
         function setSpeed(language, speed) {
             const reader = window.documentReader.readers[language];
+            reader.playbackSpeed = speed; // Set the global playback speed for the reader
             
-            // 1. Set the global persistent speed for this language reader
-            reader.playbackSpeed = speed;
+            // NEW: Save speed to localStorage for persistence
+            localStorage.setItem(`readerSpeed_${language}`, speed);
             
-            // 2. Update active speed button robustly
-            const containerId = language === 'en' ? 'english-content' : 'portuguese-content';
-            document.querySelectorAll(`#${containerId} .speed-controls .speed-btn`).forEach(btn => {
-                btn.classList.remove('active');
-                // Check if the button's text value matches the speed value
-                if (parseFloat(btn.textContent) === speed) {
-                    btn.classList.add('active');
-                }
-            });
+            // Update active speed button and apply to current audio
+            reader.updateSpeedUI(); 
             
-            // 3. Apply speed to the currently playing audio (if any)
-            // This ensures an immediate change for the currently playing chunk.
+            // Apply speed to current audio if playing (Immediate change)
             if (reader.currentAudio) {
                 reader.currentAudio.playbackRate = speed;
             }
             
-            // The LanguageReader.playAudioBlob method automatically uses 
-            // the updated reader.playbackSpeed for ALL subsequent chunks.
+            // NOTE: The crucial part for *future* chunks is that playAudioBlob uses reader.playbackSpeed
         }
 
         class EnhancedDocumentReader {
@@ -1011,6 +1002,10 @@
                 this.initializeElements();
                 this.setupEventListeners();
                 this.populateVoices();
+                
+                // Set initial speed UI after readers are initialized
+                this.readers.en.updateSpeedUI();
+                this.readers.pt.updateSpeedUI();
             }
 
             initializeElements() {
@@ -1041,7 +1036,11 @@
                 this.chunkSize = 10;
                 this.currentAudio = null;
                 this.audioBlobs = new Map(); // Cache downloaded audio
-                this.playbackSpeed = 1.0; // Persistent playback speed
+                
+                // NEW: Initialize playback speed from localStorage or default to 1.0
+                const storedSpeed = localStorage.getItem(`readerSpeed_${language}`);
+                this.playbackSpeed = storedSpeed ? parseFloat(storedSpeed) : 1.0;
+
                 this.preloadQueue = []; // Queue for preloading audio
                 this.isPreloading = false;
                 this.preloadedCount = 0;
@@ -1089,6 +1088,9 @@
                 // Skip buttons
                 this.skipBackBtn = document.getElementById(`skipBackBtn${suffix}`);
                 this.skipAheadBtn = document.getElementById(`skipAheadBtn${suffix}`);
+                
+                // Speed controls
+                this.speedControls = document.getElementById(`speedControls${suffix}`);
             }
 
             setupEventListeners(suffix) {
@@ -1100,20 +1102,30 @@
                 this.playPauseBtn.addEventListener('click', () => this.togglePlayPause());
                 this.audioProgress.addEventListener('click', (e) => this.seekAudio(e));
 
-                // Skip button listeners
                 this.skipBackBtn.addEventListener('click', () => this.skipBack());
                 this.skipAheadBtn.addEventListener('click', () => this.skipToNextChunk());
+            }
+            
+            /**
+             * NEW: Updates the UI to reflect the current playbackSpeed.
+             */
+            updateSpeedUI() {
+                if (this.speedControls) {
+                    this.speedControls.querySelectorAll('.speed-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                        // Use toFixed(2) for floating point comparison accuracy
+                        if (parseFloat(btn.textContent).toFixed(2) === this.playbackSpeed.toFixed(2)) {
+                            btn.classList.add('active');
+                        }
+                    });
+                }
             }
 
             /**
              * Implements the skip ahead logic: jump to the next audio chunk.
              */
             skipToNextChunk() {
-                if (!this.isPlaying || this.currentChunkIndex >= this.currentChunks.length - 1) {
-                    // Stop or already at the end
-                    this.stopReading();
-                    return;
-                }
+                if (!this.currentChunks.length) return;
 
                 // Stop current audio
                 if (this.currentAudio) {
@@ -1123,7 +1135,19 @@
                 
                 // Move to the next chunk and read it
                 this.currentChunkIndex++;
-                this.readChunk(this.currentChunkIndex);
+                if (this.currentChunkIndex < this.currentChunks.length) {
+                    if (!this.isPlaying) {
+                        this.isPlaying = true; // Auto-start playing if document is loaded
+                        this.updateButtonStates();
+                    }
+                    this.readChunk(this.currentChunkIndex);
+                } else {
+                    this.stopReading();
+                    const message = this.language === 'en' 
+                        ? 'Reading completed!'
+                        : 'Leitura concluída!';
+                    this.showStatus(message, 'success');
+                }
             }
 
             /**
@@ -1132,39 +1156,38 @@
              * 2. Double click (within 2s): Jump to previous chunk.
              */
             skipBack() {
-                if (!this.isPlaying || !this.currentAudio) {
-                    // If paused, just jump back a chunk
-                    if (this.currentChunkIndex > 0) {
-                        this.currentChunkIndex--;
-                        this.readChunk(this.currentChunkIndex);
-                    }
-                    return;
-                }
-                
-                const now = Date.now();
-                const timeSinceLastClick = now - this.lastSkipBackClickTime;
-                this.lastSkipBackClickTime = now;
-                
-                if (timeSinceLastClick < 2000) {
-                    // SECOND CLICK (within 2 seconds) -> Jump to previous chunk
-                    if (this.currentChunkIndex > 0) {
-                        // Stop current audio
-                        this.currentAudio.pause();
-                        this.currentAudio = null;
-                        
-                        // Move to previous chunk
-                        this.currentChunkIndex--;
-                        this.readChunk(this.currentChunkIndex);
+                if (!this.currentChunks.length) return;
+
+                if (this.currentAudio) {
+                    const now = Date.now();
+                    const timeSinceLastClick = now - this.lastSkipBackClickTime;
+                    this.lastSkipBackClickTime = now;
+                    
+                    if (timeSinceLastClick < 2000) {
+                        // SECOND CLICK (within 2 seconds) -> Jump to previous chunk
+                        if (this.currentChunkIndex > 0) {
+                            // Stop current audio
+                            this.currentAudio.pause();
+                            this.currentAudio = null;
+                            
+                            // Move to previous chunk
+                            this.currentChunkIndex--;
+                            this.readChunk(this.currentChunkIndex);
+                        } else {
+                            // Already at the first chunk, just reset to 0
+                            this.currentAudio.currentTime = 0;
+                        }
+
                     } else {
-                        // Already at the first chunk, just reset to 0
+                        // FIRST CLICK (or click after 2 seconds) -> Jump to start of current audio
                         this.currentAudio.currentTime = 0;
                     }
-
-                } else {
-                    // FIRST CLICK (or click after 2 seconds) -> Jump to start of current audio
-                    this.currentAudio.currentTime = 0;
+                    this.updateTimeDisplay();
+                } else if (this.currentChunkIndex > 0) {
+                    // If paused/stopped, just jump back a chunk
+                    this.currentChunkIndex--;
+                    this.readChunk(this.currentChunkIndex);
                 }
-                this.updateTimeDisplay();
             }
 
             populateVoices() {
@@ -1204,6 +1227,10 @@
                 
                 this.showStatus(this.language === 'en' ? 'Processing document...' : 'Processando documento...', 'info');
                 
+                // Clear previous state and cache on new file upload
+                this.stopReading();
+                this.clearCache();
+
                 try {
                     let text = '';
                     const fileExtension = file.name.split('.').pop().toLowerCase();
@@ -1222,7 +1249,10 @@
                             throw new Error(`Unsupported file format: ${fileExtension}`);
                     }
 
-                    if (!text.trim()) {
+                    // Basic text normalization to reduce chunking errors
+                    text = text.replace(/(\r\n|\n|\r)/gm, ' ').replace(/\s{2,}/g, ' ').trim();
+
+                    if (!text) {
                         throw new Error('No text content found in the document');
                     }
 
@@ -1304,6 +1334,7 @@
                 if (this.currentDocument) {
                     this.currentChunks = this.splitIntoChunks(this.currentDocument);
                     this.displayDocument();
+                    this.clearCache(); // Invalidate cache since chunking changed
                 }
             }
 
@@ -1331,13 +1362,21 @@
                 await this.readChunk(this.currentChunkIndex);
             }
 
+            /**
+             * FIX: Start preloading from the current chunk index to ensure the most relevant chunks are cached.
+             */
             async startPreloadingAudio() {
-                if (this.isPreloading) return;
+                if (this.isPreloading || !this.currentChunks.length) return;
                 
                 this.isPreloading = true;
                 this.preloadedCount = 0;
+
+                const totalChunks = this.currentChunks.length;
+                const startChunk = this.currentChunkIndex;
+                const totalChunksToCache = Math.min(totalChunks, this.currentChunkIndex + this.maxPreloadChunks);
+
                 this.cacheStatus.style.display = 'block';
-                this.updateCacheStatus();
+                this.updateCacheStatus(startChunk, totalChunksToCache); // Initial status
                 
                 const message = this.language === 'en' 
                     ? `Caching audio for offline reading...`
@@ -1345,7 +1384,7 @@
                 this.showStatus(message, 'info');
 
                 // Preload chunks starting from current position
-                for (let i = this.currentChunkIndex; i < Math.min(this.currentChunks.length, this.currentChunkIndex + this.maxPreloadChunks); i++) {
+                for (let i = startChunk; i < totalChunksToCache; i++) {
                     try {
                         const cacheKey = `${this.selectedVoice}-${i}`;
                         
@@ -1355,11 +1394,12 @@
                             const audioBlob = await this.downloadAudio(audioUrl);
                             this.audioBlobs.set(cacheKey, audioBlob);
                             
-                            this.preloadedCount++;
-                            this.updateCacheStatus();
+                            this.updateCacheStatus(startChunk, totalChunksToCache);
                             
                             // Small delay to prevent overwhelming the server
                             await new Promise(resolve => setTimeout(resolve, 200));
+                        } else {
+                            this.updateCacheStatus(startChunk, totalChunksToCache);
                         }
                     } catch (error) {
                         console.warn(`Failed to preload chunk ${i}:`, error);
@@ -1368,23 +1408,37 @@
                 }
                 
                 const finalMessage = this.language === 'en' 
-                    ? `Audio playlist ready! Cached ${this.preloadedCount} chunks for offline reading`
-                    : `Playlist de áudio pronta! ${this.preloadedCount} blocos armazenados para leitura offline`;
+                    ? `Audio playlist ready! Cached ${this.audioBlobs.size} chunks for offline reading`
+                    : `Playlist de áudio pronta! ${this.audioBlobs.size} blocos armazenados para leitura offline`;
                 this.showStatus(finalMessage, 'success');
                 
                 this.isPreloading = false;
             }
 
-            updateCacheStatus() {
+            updateCacheStatus(startIndex = 0, totalChunks = this.currentChunks.length) {
                 if (this.cacheProgress && this.cacheBarFill) {
-                    const totalChunks = Math.min(this.maxPreloadChunks, this.currentChunks.length);
+                    // Recalculate preloaded count based on the relevant cache window
+                    let cachedInWindow = 0;
+                    const windowEnd = Math.min(this.currentChunks.length, startIndex + this.maxPreloadChunks);
+                    const totalInWindow = windowEnd - startIndex;
+
+                    for(let i = startIndex; i < windowEnd; i++) {
+                        const cacheKey = `${this.selectedVoice}-${i}`;
+                        if (this.audioBlobs.has(cacheKey)) {
+                            cachedInWindow++;
+                        }
+                    }
+
                     const progressText = this.language === 'en' 
-                        ? `${this.preloadedCount}/${totalChunks} chunks cached`
-                        : `${this.preloadedCount}/${totalChunks} blocos armazenados`;
+                        ? `${cachedInWindow}/${totalInWindow} chunks cached`
+                        : `${cachedInWindow}/${totalInWindow} blocos armazenados`;
                     
                     this.cacheProgress.textContent = progressText;
-                    const percentage = (this.preloadedCount / totalChunks) * 100;
+                    const percentage = totalInWindow > 0 ? (cachedInWindow / totalInWindow) * 100 : 0;
                     this.cacheBarFill.style.width = `${percentage}%`;
+
+                    // We now use this.audioBlobs.size for the absolute total cached, which is more accurate.
+                    this.preloadedCount = this.audioBlobs.size;
                 }
             }
 
@@ -1407,7 +1461,17 @@
                     
                     // Show audio player for test
                     this.audioPlayer.style.display = 'block';
+                    
+                    // Temporarily store original isPlaying state
+                    const wasPlaying = this.isPlaying;
+                    this.isPlaying = true;
+                    this.updateButtonStates();
+
                     await this.playAudioBlob(audioBlob);
+                    
+                    // Restore original state
+                    this.isPlaying = wasPlaying;
+                    this.updateButtonStates();
                     
                     const successMessage = this.language === 'en' 
                         ? 'Voice test completed successfully!'
@@ -1436,9 +1500,7 @@
             }
 
             async handleVoiceFailure(error) {
-                const fallbackVoices = this.language === 'en' 
-                    ? ['Brian', 'Amy', 'Emma', 'Russell'] 
-                    : ['Ricardo', 'Vitoria', 'Camila', 'Ines'];
+                const fallbackVoices = this.availableVoices.map(v => v.name);
                 
                 // Find a working fallback voice
                 for (const voiceName of fallbackVoices) {
@@ -1446,6 +1508,7 @@
                     
                     try {
                         const testText = this.language === 'en' ? "Testing fallback voice" : "Testando voz alternativa";
+                        // A simple call to generate audio is enough to test if the voice works
                         await this.generateAudioFromProxy(testText, voiceName);
                         
                         // If successful, switch to this voice
@@ -1456,6 +1519,10 @@
                             ? `Original voice failed. Switched to "${voiceName}" which is working properly.`
                             : `Voz original falhou. Alterado para "${voiceName}" que está funcionando corretamente.`;
                         this.showStatus(message, 'info');
+                        
+                        // Clear cache since voice changed
+                        this.clearCache();
+                        
                         return;
                     } catch (fallbackError) {
                         console.warn(`Fallback voice ${voiceName} also failed:`, fallbackError);
@@ -1514,7 +1581,8 @@
 
                 try {
                     // Check if audio is already cached
-                    let audioBlob = this.audioBlobs.get(`${this.selectedVoice}-${chunkIndex}`);
+                    const cacheKey = `${this.selectedVoice}-${chunkIndex}`;
+                    let audioBlob = this.audioBlobs.get(cacheKey);
                     
                     if (!audioBlob) {
                         // Generate and download audio (fallback for non-preloaded chunks)
@@ -1525,16 +1593,23 @@
                         
                         const audioUrl = await this.generateAudioFromProxy(chunk.text, this.selectedVoice);
                         audioBlob = await this.downloadAudio(audioUrl);
-                        this.audioBlobs.set(`${this.selectedVoice}-${chunkIndex}`, audioBlob);
+                        this.audioBlobs.set(cacheKey, audioBlob);
+
+                        // Update cache status after a successful load during reading
+                        this.updateCacheStatus(this.currentChunkIndex);
                     }
 
                     if (this.isPlaying) {
+                        // FIX: This line ensures the currently set global speed is applied to the new audio object
                         await this.playAudioBlob(audioBlob);
                         
                         if (this.isPlaying) {
                             this.currentChunkIndex++;
+                            
                             // Start preloading the next chunks after a delay
                             setTimeout(() => this.startPreloadingAudio(), 50); 
+                            
+                            // Proceed to the next chunk
                             setTimeout(() => this.readChunk(this.currentChunkIndex), 300);
                         }
                     }
@@ -1648,7 +1723,8 @@
 
                     const audioUrl = URL.createObjectURL(audioBlob);
                     this.currentAudio = new Audio(audioUrl);
-                    // This is the key line: it uses the persistent speed setting for all new audio chunks.
+                    
+                    // Apply the current playback speed immediately
                     this.currentAudio.playbackRate = this.playbackSpeed; 
 
                     // Show audio player
@@ -1683,7 +1759,14 @@
                     };
 
                     this.currentAudio.oncanplaythrough = () => {
+                        // Ensure speed is applied right before playing
+                        this.currentAudio.playbackRate = this.playbackSpeed;
                         this.currentAudio.play().catch(reject);
+                    };
+
+                    this.currentAudio.onloadedmetadata = () => {
+                        // Apply speed as soon as metadata is loaded
+                        this.currentAudio.playbackRate = this.playbackSpeed;
                     };
 
                     this.currentAudio.load();
@@ -1703,6 +1786,9 @@
                         this.playIcon.style.display = 'block';
                         this.pauseIcon.style.display = 'none';
                     }
+                } else if (this.currentChunks.length > 0 && !this.isPlaying) {
+                    // If no audio is playing but we have a document, start reading
+                    this.startReading();
                 }
             }
 
@@ -1732,7 +1818,6 @@
 
             stopReading() {
                 this.isPlaying = false;
-                this.currentChunkIndex = 0;
                 
                 if (this.currentAudio) {
                     this.currentAudio.pause();
@@ -1744,11 +1829,11 @@
                 this.updateButtonStates();
                 
                 // Keep cache status visible to show cached content
-                if (this.preloadedCount > 0) {
+                if (this.audioBlobs.size > 0) {
                     const cacheSize = this.getCacheSize();
                     const message = this.language === 'en' 
-                        ? `Reading stopped. ${this.preloadedCount} chunks cached (${cacheSize}) ready for offline reading.`
-                        : `Leitura interrompida. ${this.preloadedCount} blocos armazenados (${cacheSize}) prontos para leitura offline.`;
+                        ? `Reading stopped. ${this.audioBlobs.size} chunks cached (${cacheSize}) ready for offline reading.`
+                        : `Leitura interrompida. ${this.audioBlobs.size} blocos armazenados (${cacheSize}) prontos para leitura offline.`;
                     this.showStatus(message, 'info');
                 } else {
                     const message = this.language === 'en' 
@@ -1823,16 +1908,27 @@
                 this.stopReadingBtn.disabled = !this.isPlaying;
                 
                 // Update button text based on cache status
-                if (hasDocument && this.preloadedCount > 0 && !this.isPlaying) {
+                if (hasDocument && this.audioBlobs.size > 0 && !this.isPlaying) {
                     const offlineText = this.language === 'en' 
-                        ? `Start Reading (${this.preloadedCount} cached)`
-                        : `Iniciar Leitura (${this.preloadedCount} armazenados)`;
+                        ? `Start Reading (${this.audioBlobs.size} cached)`
+                        : `Iniciar Leitura (${this.audioBlobs.size} armazenados)`;
                     this.startReadingBtn.textContent = offlineText;
                 } else {
                     const normalText = this.language === 'en' 
                         ? 'Start Reading'
                         : 'Iniciar Leitura';
                     this.startReadingBtn.textContent = normalText;
+                }
+                
+                // Update play/pause icon on main button
+                if (this.playIcon && this.pauseIcon) {
+                    if (this.isPlaying && this.currentAudio && !this.currentAudio.paused) {
+                        this.playIcon.style.display = 'none';
+                        this.pauseIcon.style.display = 'block';
+                    } else {
+                        this.playIcon.style.display = 'block';
+                        this.pauseIcon.style.display = 'none';
+                    }
                 }
             }
 
